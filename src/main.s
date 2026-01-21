@@ -1,3 +1,5 @@
+.include "floppy.inc"
+
 .segment "BHDR"
 
 		.word	$0801
@@ -8,5 +10,5 @@ hdrend:		.word	0
 
 .segment "ENTRY"
 
-entry:		rts
-
+entry:		lda	#8
+		jmp	floppy_init

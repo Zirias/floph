@@ -1,12 +1,12 @@
 CA65?=		ca65
 LD65?=		ld65
 
-CA65FLAGS+=	-t none -g
+CA65FLAGS+=	-t c64 -g
 LD65FLAGS+=	-Ln $(TARGET).lbl -m $(TARGET).map -C src/$(TARGET).cfg
 
 TARGET=		floph
 
-MODULES=	main drv
+MODULES=	main zpshared floppy drv
 
 OBJS=		$(addprefix obj/,$(addsuffix .o,$(MODULES)))
 
