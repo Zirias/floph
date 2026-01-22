@@ -6,7 +6,7 @@ LD65FLAGS+=	-Ln $(TARGET).lbl -m $(TARGET).map -C src/$(TARGET).cfg
 
 TARGET=		floph
 
-MODULES=	main zpshared floppy drv
+MODULES=	main zpshared floppy drv fnv1a
 
 OBJS=		$(addprefix obj/,$(addsuffix .o,$(MODULES)))
 
