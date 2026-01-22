@@ -116,13 +116,16 @@ gb_loop:	lda	#$c0
 		eor	#$c0
 		beq	gb_loop
 		asl	a
-		ror	ZPS_0
 		lda	CIA2_PRA
-		ora	#$30
-		sta	CIA2_PRA
+		and	#$cf
+		ora	#$20
+		bcc	gb_skip
+		eor	#$30
+gb_skip:	sta	CIA2_PRA
+		ror	ZPS_0
 gb_wait:	lda	CIA2_PRA
 		and	#$c0
-		bne	gb_wait
+		beq	gb_wait
 		lda	CIA2_PRA
 		and	#$cf
 		sta	CIA2_PRA
