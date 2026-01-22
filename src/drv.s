@@ -1,18 +1,80 @@
 .include "via.inc"
 
 GB_TMP=		$05
+DIR_TMP0=	$10
 
 .segment "DRV"
 
 		cli
-		ldx	#0
+start:		ldx	#0
 nameloop:	jsr	getbyte
 		beq	havename
 		sta	name,x
 		inx
 		bne	nameloop
-havename:	jsr	getbyte
-		jmp	*-3
+havename:	lda	#$a0
+		sta	name,x
+		inx
+		cpx	#$10
+		bcc	lenok
+		ldx	#$10
+lenok:		stx	DIR_TMP0
+		lda	#18
+		sta	$6
+		lda	#1
+		sta	$7
+readdir:	lda	#$80
+		sta	$0
+		lda	#$02
+		sta	checkfile+1
+		lda	#$05
+		sta	checkname+1
+		lda	$0
+		bmi	*-2
+checkfile:	lda	$302
+		tax
+		and	#$3
+		beq	checknext
+		txa
+		eor	#$80
+		and	#$fc
+		bne	checknext
+		tax
+checkname:	lda	$305,x
+		cmp	name,x
+		bne	checknext
+		inx
+		cpx	DIR_TMP0
+		bne	checkname
+		ldx	checkfile+1
+		inx
+		stx	ldsttrack+1
+		inx
+		stx	ldstsect+1
+ldstsect:	lda	$3ff
+		sta	$301
+ldsttrack:	lda	$3ff
+		sta	$300
+		bne	found
+checknext:	clc
+		lda	checkfile+1
+		adc	#$20
+		sta	checkfile+1
+		clc
+		lda	checkname+1
+		adc	#$20
+		sta	checkname+1
+		bcc	checkfile
+		lda	$301
+		sta	$7
+		lda	$300
+		sta	$6
+		bne	readdir
+
+		; error
+		jmp	start
+
+found:		jmp	*
 
 getbyte:	sty	gb_ry+1
 		ldy	#8

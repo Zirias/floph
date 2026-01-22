@@ -8,7 +8,14 @@
 		.byte	$9e, "2061", 0
 hdrend:		.word	0
 
+.data
+
+filename:	.byte	"floph", 0
+
 .segment "ENTRY"
 
 entry:		lda	#8
-		jmp	floppy_init
+		jsr	floppy_init
+		lda	#<filename
+		ldx	#>filename
+		jmp	floppy_hashfile

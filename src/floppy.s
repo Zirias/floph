@@ -1,8 +1,10 @@
+.include "cia.inc"
 .include "drv.inc"
 .include "kernal.inc"
 .include "zpshared.inc"
 
 .export floppy_init
+.export floppy_hashfile
 
 .data
 
@@ -14,7 +16,8 @@ mecmd_len=	* - mecmd
 
 .code
 
-floppy_init:	sta	$ba
+floppy_init:
+		sta	$ba
 		lda	#<((DRV_SIZE+$1f)>>5)
 		sta	ZPS_0
 		lda	#<DRV_RUN
@@ -65,4 +68,37 @@ fi_sendme:	lda	mecmd,x
 		dex
 		bpl	fi_sendme
 		jmp	KRNL_UNLSN
+
+floppy_hashfile:
+		stx	fhf_read+2
+		tax
+fhf_read:	lda	$ff00,x
+		beq	sendbyte
+		jsr	sendbyte
+		inx
+		bne	fhf_read
+		inc	fhf_read+2
+		bne	fhf_read
+
+sendbyte:	sta	ZPS_0
+		ldy	#8
+sb_loop:	bit	CIA2_PRA
+		bvc	sb_loop
+		bpl	sb_loop
+		lsr	ZPS_0
+		lda	CIA2_PRA
+		and	#$cf
+		ora	#$10
+		bcc	sb_zerobit
+		eor	#$30
+sb_zerobit:	sta	CIA2_PRA
+		lda	#$c0
+sb_waitack:	bit	CIA2_PRA
+		bne	sb_waitack
+		lda	CIA2_PRA
+		and	#$cf
+		sta	CIA2_PRA
+		dey
+		bne	sb_loop
+		rts
 
