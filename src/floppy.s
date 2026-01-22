@@ -37,7 +37,11 @@ floppy_init:
 		sta	fi_rdin+2
 fi_upload:	lda	$ba
 		jsr	KRNL_LISTEN
-		lda	#$6f
+		jsr	KRNL_READST
+		bpl	fi_proceed
+		sec
+		rts
+fi_proceed:	lda	#$6f
 		jsr	KRNL_SECOND
 		ldx	#mwcmd_len - 1
 fi_mwhdr:	lda	mwcmd,x
@@ -74,7 +78,9 @@ fi_sendme:	lda	mecmd,x
 		jsr	KRNL_CIOUT
 		dex
 		bpl	fi_sendme
-		jmp	KRNL_UNLSN
+		jsr	KRNL_UNLSN
+		clc
+		rts
 
 floppy_hashfile:
 		stx	fhf_read+2

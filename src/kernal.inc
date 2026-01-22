@@ -9,6 +9,7 @@ KRNL_CIOUT	= $ffa8
 KRNL_CLOSE	= $ffc3
 KRNL_OPEN	= $ffc0
 KRNL_SETMSG	= $ff90
+KRNL_READST	= $ffb7
 KRNL_SETNAM	= $ffbd
 KRNL_SETLFS	= $ffba
 KRNL_CLRCHN	= $ffcc

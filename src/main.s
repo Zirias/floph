@@ -16,6 +16,7 @@ prompt:		.byte	$d, "enter full file name to hash,", $d, "empty to exit", $d
 hashtxt:	.byte	"hash: ", 0
 readerrtxt:	.byte	"read error!", $d, 0
 notfoundtxt:	.byte	"not found!", $d, 0
+uploaderrtxt:	.byte	"error uploading drive code!", $d, 0
 
 .bss
 
@@ -25,7 +26,14 @@ filename:	.res	$80
 
 entry:		lda	#8
 		jsr	floppy_init
-
+		bcc	mainloop
+		ldy	#0
+uploaderr:	lda	uploaderrtxt,y
+		bne	uecout
+		rts
+uecout:		jsr	KRNL_CHROUT
+		iny
+		bne	uploaderr
 mainloop:	ldy	#0
 promptout:	lda	prompt,y
 		beq	promptdone
