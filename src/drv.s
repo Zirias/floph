@@ -16,7 +16,6 @@ BUF_1=		4
 
 .segment "DRV"
 
-		cli
 start:		lda	#CSR_0
 		sta	sr_csr+1
 		sta	cr_csr_0+1
@@ -189,7 +188,6 @@ sb_waitack:	lda	VIA1_PRB
 		and	#$5
 		eor	#$5
 		bne	sb_waitack
-		and	#0
 		sta	VIA1_PRB
 		dey
 		bne	sb_loop
