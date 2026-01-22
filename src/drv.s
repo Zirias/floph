@@ -27,6 +27,9 @@ start:		lda	#CSR_0
 		lda	#BUF_0
 		sta	hashloop+2
 		sta	hl_nextsect+2
+		lda	VIA2_PRB
+		and	#$f7
+		sta	VIA2_PRB
 		ldx	#0
 nameloop:	jsr	getbyte
 		beq	havename
@@ -40,6 +43,9 @@ havename:	lda	#$a0
 		bcc	lenok
 		ldx	#$10
 lenok:		stx	DIR_TMP0
+		lda	VIA2_PRB
+		ora	#8
+		sta	VIA2_PRB
 		lda	#18
 		ldx	#1
 readdir:	jsr	startread
