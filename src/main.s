@@ -18,4 +18,7 @@ entry:		lda	#8
 		jsr	floppy_init
 		lda	#<filename
 		ldx	#>filename
-		jmp	floppy_hashfile
+		jsr	floppy_hashfile
+recvloop:	jsr	floppy_receive
+		bcc	recvloop
+		rts

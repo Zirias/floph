@@ -5,6 +5,9 @@
 
 .export floppy_init
 .export floppy_hashfile
+.export floppy_receive
+
+.export floppy_result
 
 .data
 
@@ -13,6 +16,10 @@ mwcmd_len=	* - mwcmd
 
 mecmd:		.byte	>DRV_RUN, <DRV_RUN, "e-m"
 mecmd_len=	* - mecmd
+
+.bss
+
+floppy_result:	.res	$100
 
 .code
 
@@ -102,3 +109,40 @@ sb_waitack:	bit	CIA2_PRA
 		bne	sb_loop
 		rts
 
+getbyte:	sty	gb_ry+1
+		ldy	#8
+gb_loop:	lda	#$c0
+		and	CIA2_PRA
+		eor	#$c0
+		beq	gb_loop
+		asl	a
+		ror	ZPS_0
+		lda	CIA2_PRA
+		ora	#$30
+		sta	CIA2_PRA
+gb_wait:	lda	CIA2_PRA
+		and	#$c0
+		bne	gb_wait
+		lda	CIA2_PRA
+		and	#$cf
+		sta	CIA2_PRA
+		dey
+		bne	gb_loop
+gb_ry:		ldy	#$ff
+		lda	ZPS_0
+		rts
+
+floppy_receive:
+		jsr	getbyte
+		sec
+		beq	fr_done
+		sta	floppy_result
+		tay
+		ldx	#1
+fr_loop:	jsr	getbyte
+		sta	floppy_result,x
+		inx
+		dey
+		bne	fr_loop
+		clc
+fr_done:	rts
