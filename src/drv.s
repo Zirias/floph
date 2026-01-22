@@ -17,7 +17,18 @@ BUF_1=		4
 .segment "DRV"
 
 		cli
-start:		ldx	#0
+start:		lda	#CSR_0
+		sta	sr_csr+1
+		sta	cr_csr_0+1
+		sta	cr_csr_1+1
+		lda	#TRACK_0
+		sta	sr_track+1
+		lda	#SECT_0
+		sta	sr_sect+1
+		lda	#BUF_0
+		sta	hashloop+2
+		sta	hl_nextsect+2
+		ldx	#0
 nameloop:	jsr	getbyte
 		beq	havename
 		sta	name,x
@@ -170,9 +181,7 @@ sb_loop:	lda	VIA1_PRB
 		and	#$5
 		bne	sb_loop
 		lsr	GB_TMP
-		lda	VIA1_PRB
-		and	#$f5
-		ora	#$8
+		lda	#$8
 		bcc	sb_zerobit
 		eor	#$a
 sb_zerobit:	sta	VIA1_PRB
@@ -180,8 +189,7 @@ sb_waitack:	lda	VIA1_PRB
 		and	#$5
 		eor	#$5
 		bne	sb_waitack
-		lda	VIA1_PRB
-		and	#$f5
+		and	#0
 		sta	VIA1_PRB
 		dey
 		bne	sb_loop
