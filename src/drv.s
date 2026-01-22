@@ -1,3 +1,4 @@
+.include "fnv1a.inc"
 .include "statuscode.inc"
 .include "via.inc"
 
@@ -38,7 +39,7 @@ readdir:	jsr	startread
 		sta	checkname+1
 		jsr	completeread
 		bcs	checkfile
-		lda	#ST_READERR
+readerr:	lda	#ST_READERR
 		jsr	senderror
 		jmp	start
 checkfile:	lda	$302
@@ -61,10 +62,8 @@ checkname:	lda	$305,x
 		stx	ldsttrack+1
 		inx
 		stx	ldstsect+1
-ldstsect:	lda	$3ff
-		sta	$301
+ldstsect:	ldx	$3ff
 ldsttrack:	lda	$3ff
-		sta	$300
 		bne	found
 checknext:	clc
 		lda	checkfile+1
@@ -82,12 +81,51 @@ checknext:	clc
 		jsr	senderror
 		jmp	start
 
-found:		lda	#2
+found:		jsr	startread
+		jsr	fnv1a_init
+		jsr	completeread
+		bcc	readerr
+hashloop:	ldx	$301
+hl_nextsect:	ldy	$300
+		beq	hashfinal
+		lda	sr_csr+1
+		eor	#1
+		sta	sr_csr+1
+		sta	cr_csr_0+1
+		sta	cr_csr_1+1
+		lda	sr_track+1
+		eor	#$e
+		sta	sr_track+1
+		ora	#1
+		sta	sr_sect+1
+		lda	hashloop+2
+		eor	#7
+		sta	hashloop+2
+		sta	hl_nextsect+2
+		tya
+		jsr	startread
+		lda	hashloop+2
+		eor	#7
+		ldy	#254
+		jsr	fnv1a_hashbuf
+		jsr	completeread
+		bcs	hashloop
+		jmp	readerr
+hashfinal:	dex
+		txa
+		tay
+		lda	hashloop+2
+		jsr	fnv1a_hashbuf
+		lda	#8
 		jsr	sendbyte
-		lda	$300
+		ldx	#0
+sendhash:	lda	fnv1a_hash,x
 		jsr	sendbyte
-		lda	$301
-		jsr	sendfinalbyte
+		inx
+		cpx	#8
+		bne	sendhash
+		lda	#0
+		jsr	sendbyte
 		jmp	start
 
 startread:
