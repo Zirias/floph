@@ -271,7 +271,7 @@ wd_store:	sta	$ffff,y
 floppy_showdir:
 		lda	#$0
 		sta	fsd_store+1
-		lda	#$4
+		lda	#$a0
 		sta	fsd_store+2
 		lda	#25
 		sta	ZPS_0

@@ -1,5 +1,6 @@
 .include "floppy.inc"
 .include "kernal.inc"
+.include "tui.inc"
 
 .segment "BHDR"
 
@@ -35,8 +36,7 @@ uecout:		jsr	KRNL_CHROUT
 		iny
 		bne	uploaderr
 displaydir:	jsr	floppy_readdir
-		ldx	#0
-		jsr	floppy_showdir
+		jsr	tui_init
 mainloop:	ldy	#0
 promptout:	lda	prompt,y
 		beq	promptdone
