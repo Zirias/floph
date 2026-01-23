@@ -5,8 +5,18 @@
 .export tui_init
 .export tui_done
 
+KB_NONE=	0
+KB_RIGHT=	1
+KB_DOWN=	2
+KB_LEFT=	3
+KB_UP=		4
+KB_ENTER=	5
+
 .bss
 
+lastkey:	.res	1
+keyrepwait1:	.res	1
+keyrepwait2:	.res	1
 scrollpos:	.res	1
 selrow:		.res	1
 save_bgcol:	.res	1
@@ -85,6 +95,7 @@ ti_initcolwr:	sta	$ff00,x
 
 isr0:
 		sta	i0_ra+1
+		stx	i0_rx+1
 		lda	selrow
 		asl
 		asl
@@ -96,8 +107,91 @@ isr0:
 		lda	#>isr1
 		sta	$ffff
 		asl	VIC_IRR
+		lda	#1
+		sta	i0_kcbase+1
+		lda	CIA1_PRA
+		and	#$1f
+		eor	#$1f
+		bne	i0_skipkb
+		lda	#$ff
+		sta	CIA1_DDRA
+		lda	#$7f
+		sta	CIA1_PRA
+		lda	CIA1_PRB
+		and	#$4		; control
+		beq	i0_kbinval
+		lda	#$bf
+		sta	CIA1_PRA
+		lda	CIA1_PRB
+		and	#$10		; right shift
+		bne	i0_norshift
+		lda	#3
+		sta	i0_kcbase+1
+i0_norshift:	lda	#$fd
+		sta	CIA1_PRA
+		lda	CIA1_PRB
+		and	#$80		; left shift
+		bne	i0_nolshift
+		lda	#3
+		sta	i0_kcbase+1
+i0_nolshift:	lda	#$fe
+		sta	CIA1_PRA
+		lda	CIA1_PRB
+i0_kcbase:	ldx	#1
+		lsr	a
+		lsr	a
+		bcs	i0_noenter
+		ldx	#KB_ENTER
+		bne	i0_kbval
+i0_noenter:	lsr	a
+		bcc	i0_kbval
+		inx
+		and	#$10
+		bne	i0_kbinval
+i0_kbval:	txa
+		cmp	lastkey
+		sta	lastkey
+		beq	i0_kbcheckrep
+		lda	#20
+		sta	keyrepwait1
+i0_handlekey:	dex
+		beq	i0_kbdone
+		dex
+		beq	i0_down
+		dex
+		beq	i0_kbdone
+		dex
+		beq	i0_up
+		; handle enter
+		bne	i0_kbdone
+i0_kbinval:	lda	#$0
+		sta	lastkey
+i0_kbdone:	lda	#$0
+		sta	CIA1_DDRA
+i0_skipkb:
+i0_rx:		ldx	#$ff
 i0_ra:		lda	#$ff
 		rti
+i0_kbcheckrep:	lda	keyrepwait1
+		beq	i0_dorep
+		dec	keyrepwait1
+		bne	i0_kbdone
+		lda	#$4
+		sta	keyrepwait2
+i0_dorep:	dec	keyrepwait2
+		bne	i0_kbdone
+		lda	#$4
+		sta	keyrepwait2
+		bne	i0_handlekey
+i0_up:		dec	selrow
+		bpl	i0_kbdone
+		inc	selrow
+		bpl	i0_kbdone
+i0_down:	ldx	selrow
+		cpx	#24
+		beq	i0_kbdone
+		inc	selrow
+		bpl	i0_kbdone
 
 isr1:
 		sta	i1_ra+1
