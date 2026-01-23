@@ -31,6 +31,18 @@ start:		lda	#CSR_0
 		ora	#8
 		sta	VIA2_PRB
 		lda	#18
+		ldx	#0
+		jsr	startread
+		lda	#$17
+		jsr	sendbyte
+		jsr	completeread
+		ldx	#0
+disknameloop:	lda	$390,x
+		jsr	sendbyte
+		inx
+		cpx	#$17
+		bne	disknameloop
+		lda	#18
 		ldx	#1
 dirsectloop:	jsr	startread
 		jsr	completeread

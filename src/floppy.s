@@ -13,10 +13,7 @@
 
 .bss
 
-disk_name:	.res	$10
-disk_id:	.res	$5
 disk_nfiles:	.res	1
-
 floppy_result:	.res	$100
 
 .segment "ALBSS"
@@ -124,6 +121,33 @@ frd_clrdir:	sta	$ff00,x
 		inc	frd_clrdir+2
 		dey
 		bne	frd_clrdir
+		jsr	floppy_receive
+		bcc	frd_diskid
+		rts
+frd_diskid:	lda	floppy_result
+		cmp	#$17
+		beq	frd_diskok
+		sec
+		rts
+frd_diskok:	lda	#<directory
+		sta	wd_store+1
+		lda	#>directory
+		sta	wd_store+2
+		ldx	#0
+		stx	ZPS_3
+frd_dnameloop:	lda	floppy_result+1,x
+		jsr	screencode
+		cpx	#$12
+		bcs	frd_dirrev
+		cpx	#$10
+		bcc	frd_dirrev
+		inx
+		bne	frd_dirchar
+frd_dirrev:	ora	#$80
+frd_dirchar:	jsr	writedir
+		inx
+		cpx	#$17
+		bne	frd_dnameloop
 frd_mainloop:	jsr	floppy_receive
 		bcc	frd_parse
 		clc
@@ -198,26 +222,8 @@ frd_rolnext:	dey
 		jsr	writedir
 		ldx	#0
 frd_nameloop:	lda	floppy_result+4,x
-		bmi	frd_shifted
-		cmp	#$20
-		bcc	frd_noprint
-		cmp	#$60
-		bcc	frd_lower
-		and	#$df
-		bne	frd_namechar
-frd_noprint:	lda	#$20
-		bne	frd_namechar
-frd_lower:	and	#$3f
-		bne	frd_namechar
-frd_shifted:	cmp	#$ff
-		bne	frd_nopi
-		lda	#$5e
-		bne	frd_namechar
-frd_nopi:	and	#$7f
-		cmp	#$20
-		bcc	frd_noprint
-		ora	#$40
-frd_namechar:	jsr	writedir
+		jsr	screencode
+		jsr	writedir
 		inx
 		cpx	#$10
 		bne	frd_nameloop
@@ -229,6 +235,28 @@ frd_namechar:	jsr	writedir
 		lda	filetypechar-1,x
 		jsr	writedir
 		jmp	frd_mainloop
+
+screencode:
+		bmi	sc_shifted
+		cmp	#$20
+		bcc	sc_noprint
+		cmp	#$60
+		bcc	sc_lower
+		and	#$df
+		bne	sc_done
+sc_noprint:	lda	#$20
+		bne	sc_done
+sc_lower:	and	#$3f
+		bne	sc_done
+sc_shifted:	cmp	#$ff
+		bne	sc_nopi
+		lda	#$5e
+		bne	sc_done
+sc_nopi:	and	#$7f
+		cmp	#$20
+		bcc	sc_noprint
+		ora	#$40
+sc_done:	rts
 
 startwritedir:
 		ldy	#0
