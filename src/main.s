@@ -26,7 +26,7 @@ filename:	.res	$80
 
 entry:		lda	#8
 		jsr	floppy_init
-		bcc	mainloop
+		bcc	displaydir
 		ldy	#0
 uploaderr:	lda	uploaderrtxt,y
 		bne	uecout
@@ -34,6 +34,9 @@ uploaderr:	lda	uploaderrtxt,y
 uecout:		jsr	KRNL_CHROUT
 		iny
 		bne	uploaderr
+displaydir:	jsr	floppy_readdir
+		ldx	#0
+		jsr	floppy_showdir
 mainloop:	ldy	#0
 promptout:	lda	prompt,y
 		beq	promptdone

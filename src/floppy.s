@@ -4,10 +4,33 @@
 .include "zpshared.inc"
 
 .export floppy_init
+.export floppy_readdir
+.export floppy_showdir
 .export floppy_hashfile
 .export floppy_receive
 
 .export floppy_result
+
+.bss
+
+disk_name:	.res	$10
+disk_id:	.res	$5
+disk_nfiles:	.res	1
+
+floppy_result:	.res	$100
+
+.segment "ALBSS"
+
+.align $100
+file_size_l:	.res	$100
+file_size_h:	.res	$100
+file_type:	.res	$100
+file_track:	.res	$100
+file_sector:	.res	$100
+file_havehash:	.res	$100
+file_hash:	.res	$800
+
+directory:	.res	$2800
 
 .data
 
@@ -17,9 +40,15 @@ mwcmd_len=	* - mwcmd
 mecmd:		.byte	>DRV_RUN, <DRV_RUN, "e-m"
 mecmd_len=	* - mecmd
 
-.bss
+dirptr_l:	.repeat $100,i
+		.byte	<(directory+i*40)
+		.endrep
 
-floppy_result:	.res	$100
+dirptr_h:	.repeat $100,i
+		.byte	>(directory+i*40)
+		.endrep
+
+filetypechar:	.byte	$13, $10, $15	; S, P, U
 
 .code
 
@@ -81,6 +110,163 @@ fi_sendme:	lda	mecmd,x
 		jsr	KRNL_UNLSN
 		clc
 		rts
+
+floppy_readdir:
+		ldx	#0
+		stx	disk_nfiles
+		lda	#>directory
+		sta	frd_clrdir+2
+		ldy	#$28
+		lda	#$20
+frd_clrdir:	sta	$ff00,x
+		inx
+		bne	frd_clrdir
+		inc	frd_clrdir+2
+		dey
+		bne	frd_clrdir
+frd_mainloop:	jsr	floppy_receive
+		bcc	frd_parse
+		clc
+		rts
+frd_parse:	lda	floppy_result
+		cmp	#21
+		beq	frd_ok0
+		sec
+		rts
+frd_ok0:	ldx	floppy_result+1
+		beq	frd_mainloop		; ignore DEL
+		bpl	frd_mainloop		; ignore unclosed
+		txa
+		and	#$fc
+		eor	#$80
+		bne	frd_mainloop		; ignore REL + unknown types
+		txa
+		and	#3			; mask type bits
+		ldx	disk_nfiles
+		sta	file_type,x
+		lda	floppy_result+2
+		sta	file_track,x
+		lda	floppy_result+3
+		sta	file_sector,x
+		lda	floppy_result+20
+		sta	file_size_l,x
+		lda	floppy_result+21
+		sta	file_size_h,x
+		lda	#0
+		sta	file_havehash,x
+		sta	ZPS_0
+		sta	ZPS_1
+		sta	ZPS_2
+		inx
+		beq	frd_mainloop		; truncate after file #255
+		stx	disk_nfiles
+		lda	dirptr_l,x
+		sta	wd_store+1
+		lda	dirptr_h,x
+		sta	wd_store+2
+		ldx	#$10
+frd_szloop:	ldy	#2
+frd_addloop:	lda	ZPS_0,y
+		cmp	#5
+		bmi	frd_noadd
+		adc	#2
+		sta	ZPS_0,y
+frd_noadd:	dey
+		bpl	frd_addloop
+		ldy	#2
+		asl	floppy_result+20
+		rol	floppy_result+21
+frd_rolloop:	lda	ZPS_0,y
+		rol	a
+		cmp	#$10
+		and	#$f
+		sta	ZPS_0,y
+frd_rolnext:	dey
+		bpl	frd_rolloop
+		dex
+		bne	frd_szloop
+		lda	ZPS_0
+		ora	#$30
+		jsr	startwritedir
+		lda	ZPS_1
+		ora	#$30
+		jsr	writedir
+		lda	ZPS_2
+		ora	#$30
+		jsr	writedir
+		lda	#$20
+		jsr	writedir
+		ldx	#0
+frd_nameloop:	lda	floppy_result+4,x
+		bmi	frd_shifted
+		cmp	#$20
+		bcc	frd_noprint
+		cmp	#$60
+		bcc	frd_lower
+		and	#$df
+		bne	frd_namechar
+frd_noprint:	lda	#$20
+		bne	frd_namechar
+frd_lower:	and	#$3f
+		bne	frd_namechar
+frd_shifted:	cmp	#$ff
+		bne	frd_nopi
+		lda	#$5e
+		bne	frd_namechar
+frd_nopi:	and	#$7f
+		cmp	#$20
+		bcc	frd_noprint
+		ora	#$40
+frd_namechar:	jsr	writedir
+		inx
+		cpx	#$10
+		bne	frd_nameloop
+		lda	#$20
+		jsr	writedir
+		lda	floppy_result+1
+		and	#$3
+		tax
+		lda	filetypechar-1,x
+		jsr	writedir
+		jmp	frd_mainloop
+
+startwritedir:
+		ldy	#0
+		sty	ZPS_3
+
+writedir:
+		ldy	ZPS_3
+wd_store:	sta	$ffff,y
+		inc	ZPS_3
+		rts
+
+floppy_showdir:
+		lda	#$0
+		sta	fsd_store+1
+		lda	#$4
+		sta	fsd_store+2
+		lda	#25
+		sta	ZPS_0
+fsd_row:	lda	dirptr_l,x
+		sta	fsd_load+1
+		lda	dirptr_h,x
+		sta	fsd_load+2
+		ldy	#39
+fsd_load:	lda	$ffff,y
+fsd_store:	sta	$ffff,y
+		dey
+		bpl	fsd_load
+		dec	ZPS_0
+		bne	fsd_next
+		rts
+fsd_next:	inx
+		clc
+		lda	fsd_store+1
+		adc	#40
+		sta	fsd_store+1
+		bcc	fsd_row
+		inc	fsd_store+2
+		bne	fsd_row
 
 floppy_hashfile:
 		stx	fhf_read+2

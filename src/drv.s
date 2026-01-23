@@ -28,8 +28,44 @@ start:		lda	#CSR_0
 		sta	hashloop+2
 		sta	hl_nextsect+2
 		lda	VIA2_PRB
+		ora	#8
+		sta	VIA2_PRB
+		lda	#18
+		ldx	#1
+dirsectloop:	jsr	startread
+		jsr	completeread
+		ldx	#2
+dirsendloop:	lda	#21
+		jsr	sendbyte
+dirinnerloop:	lda	$300,x
+		jsr	sendbyte
+		inx
+		txa
+		and	#$1f
+		cmp	#$15
+		bcc	dirinnerloop
+		txa
+		adc	#8
+		tax
+		lda	$300,x
+		jsr	sendbyte
+		inx
+		lda	$300,x
+		jsr	sendbyte
+		inx
+		beq	dirnextsect
+		inx
+		inx
+		bne	dirsendloop
+dirnextsect:	ldx	$301
+		lda	$300
+		bne	dirsectloop
+		lda	VIA2_PRB
 		and	#$f7
 		sta	VIA2_PRB
+		lda	#0
+		jsr	sendbyte
+
 		ldx	#0
 nameloop:	jsr	getbyte
 		beq	havename
