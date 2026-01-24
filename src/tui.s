@@ -14,11 +14,14 @@ KB_ENTER=	5
 
 .bss
 
+cmd:		.res	1
 lastkey:	.res	1
 keyrepwait1:	.res	1
 keyrepwait2:	.res	1
 scrollpos:	.res	1
 selrow:		.res	1
+dirpos:		.res	1
+nfiles:		.res	1
 save_bgcol:	.res	1
 save_bordercol:	.res	1
 
@@ -30,9 +33,12 @@ save_colors:	.res	$400
 .code
 
 tui_init:
+		sta	nfiles
 		lda	#$7f
 		sta	CIA1_ICR
 		ldx	#0
+		stx	scrollpos
+		stx	cmd
 		jsr	floppy_showdir
 		lda	BORDER_COLOR
 		sta	save_bordercol
@@ -101,8 +107,25 @@ ti_initcolwr:	sta	$ff00,x
 		asl	VIC_IRR
 		lda	#1
 		sta	selrow
+		sta	dirpos
 
-		jmp	*
+cmdloop:	lda	cmd
+		beq	cmdloop
+		bmi	scrollup
+		ldx	scrollpos
+		inx
+		stx	scrollpos
+		jsr	floppy_showdir
+		lda	#0
+		sta	cmd
+		beq	cmdloop
+scrollup:	ldx	scrollpos
+		dex
+		stx	scrollpos
+		jsr	floppy_showdir
+		lda	#0
+		sta	cmd
+		beq	cmdloop
 
 isr0:
 		sta	i0_ra+1
@@ -194,14 +217,39 @@ i0_dorep:	dec	keyrepwait2
 		lda	#$4
 		sta	keyrepwait2
 		bne	i0_handlekey
-i0_up:		dec	selrow
-		bpl	i0_kbdone
-		inc	selrow
-		bpl	i0_kbdone
-i0_down:	ldx	selrow
-		cpx	#24
+i0_up:		ldx	dirpos
 		beq	i0_kbdone
-		inc	selrow
+		dex
+		stx	dirpos
+		ldx	selrow
+		cpx	#4
+		bne	i0_uns
+		lda	scrollpos
+		beq	i0_uns
+		lda	#$80
+		sta	cmd
+		bmi	i0_kbdone
+i0_uns:		dex
+		stx	selrow
+		bpl	i0_kbdone
+i0_down:	ldx	dirpos
+		cpx	nfiles
+		beq	i0_kbdone
+		inx
+		stx	dirpos
+		ldx	selrow
+		cpx	#20
+		bne	i0_dns
+		lda	scrollpos
+		clc
+		adc	#24
+		cmp	nfiles
+		bcs	i0_dns
+		lda	#$1
+		sta	cmd
+		bne	i0_kbdone
+i0_dns:		inx
+		stx	selrow
 		bpl	i0_kbdone
 
 isr1:

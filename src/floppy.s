@@ -151,6 +151,7 @@ frd_dirchar:	jsr	writedir
 frd_mainloop:	jsr	floppy_receive
 		bcc	frd_parse
 		clc
+		lda	disk_nfiles
 		rts
 frd_parse:	lda	floppy_result
 		cmp	#21
