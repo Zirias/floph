@@ -1,9 +1,9 @@
 .include "cia.inc"
 .include "floppy.inc"
 .include "vic.inc"
+.include "zpshared.inc"
 
-.export tui_init
-.export tui_done
+.export tui_run
 
 KB_NONE=	0
 KB_RIGHT=	1
@@ -32,7 +32,7 @@ save_colors:	.res	$400
 
 .code
 
-tui_init:
+tui_run:
 		sta	nfiles
 		lda	#$7f
 		sta	CIA1_ICR
@@ -109,34 +109,87 @@ ti_initcolwr:	sta	$ff00,x
 		sta	selrow
 		sta	dirpos
 
-cmdloop:	lda	cmd
-		beq	cmdloop
+cmdloop:	lda	#0
+		sta	cmd
+cmdwait:	lda	cmd
+		beq	cmdwait
 		bmi	scrollup
 		lsr	a
 		bcs	scrolldown
 		ldx	dirpos
-		beq	hashdone
+		beq	cmdloop
 		lda	#0
 		sta	lastkey
 		dex
 		jsr	floppy_hashfile
-hashdone:	lda	#0
-		sta	cmd
-		beq	cmdloop
+		jmp	showhash
+
 scrolldown:	ldx	scrollpos
 		inx
 		stx	scrollpos
 		jsr	floppy_showdir
-		lda	#0
-		sta	cmd
-		beq	cmdloop
+		jmp	cmdloop
 scrollup:	ldx	scrollpos
 		dex
 		stx	scrollpos
 		jsr	floppy_showdir
+		jmp	cmdloop
+
+showhash:	ldx	dirpos
+		lda	dirptr_l,x
+		sta	houthd+1
+		sta	houtld+1
+		lda	dirptr_h,x
+		sta	houthd+2
+		sta	houtld+2
 		lda	#0
-		sta	cmd
-		beq	cmdloop
+		sta	ZPS_5
+		lda	selrow
+		asl	a
+		asl	a
+		asl	a
+		sta	ZPS_4
+		asl	a
+		rol	ZPS_5
+		asl	a
+		rol	ZPS_5
+		adc	ZPS_4
+		sta	houths+1
+		sta	houtls+1
+		lda	ZPS_5
+		ora	#$a0
+		sta	houths+2
+		sta	houtls+2
+
+		lda	floppy_result
+		cmp	#8
+		beq	hashout
+hashout:	ldy	#23
+		ldx	#8
+houtloop:	lda	floppy_result,x
+		lsr
+		lsr
+		lsr
+		lsr
+		ora	#$30
+		cmp	#$3a
+		bcc	houths
+		sbc	#$39
+houths:		sta	$ffff,y
+houthd:		sta	$ffff,y
+		iny
+		lda	floppy_result,x
+		and	#$f
+		ora	#$30
+		cmp	#$3a
+		bcc	houtls
+		sbc	#$39
+houtls:		sta	$ffff,y
+houtld:		sta	$ffff,y
+		iny
+		dex
+		bne	houtloop
+		jmp	cmdloop
 
 isr0:
 		sta	i0_ra+1
@@ -302,5 +355,3 @@ isr2:
 i2_ra:		lda	#$ff
 		rti
 
-tui_done:
-		rts

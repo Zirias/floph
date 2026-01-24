@@ -10,6 +10,8 @@
 .export floppy_receive
 
 .export floppy_result
+.export dirptr_l
+.export dirptr_h
 
 .bss
 

@@ -5,3 +5,5 @@
 .import floppy_receive
 
 .import floppy_result
+.import dirptr_l
+.import dirptr_h

@@ -1,2 +1,1 @@
-.import tui_init
-.import tui_done
+.import tui_run
