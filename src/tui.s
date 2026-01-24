@@ -210,11 +210,11 @@ i0_kbcheckrep:	lda	keyrepwait1
 		beq	i0_dorep
 		dec	keyrepwait1
 		bne	i0_kbdone
-		lda	#$4
+		lda	#$3
 		sta	keyrepwait2
 i0_dorep:	dec	keyrepwait2
 		bne	i0_kbdone
-		lda	#$4
+		lda	#$3
 		sta	keyrepwait2
 		bne	i0_handlekey
 i0_up:		ldx	dirpos
