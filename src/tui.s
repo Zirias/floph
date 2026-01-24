@@ -79,13 +79,24 @@ ti_initcolwr:	sta	$ff00,x
 		sta	$fffe
 		lda	#>isr0
 		sta	$ffff
+		lda	#<i0_rti
+		sta	$fffa
+		lda	#>i0_rti
+		sta	$fffb
 		lda	#$ff
 		sta	VIC_RASTER
 		lda	#$1b
 		sta	VIC_CTL1
+		lda	#0
+		sta	CIA2_CRA
+		sta	CIA2_TA_LO
+		sta	CIA2_TA_HI
 		lda	#$35
 		sta	$1
+		lda	#$81
+		sta	CIA2_ICR
 		lda	#$1
+		sta	CIA2_CRA
 		sta	VIC_IRM
 		asl	VIC_IRR
 		lda	#1
@@ -171,7 +182,7 @@ i0_kbdone:	lda	#$0
 i0_skipkb:
 i0_rx:		ldx	#$ff
 i0_ra:		lda	#$ff
-		rti
+i0_rti:		rti
 i0_kbcheckrep:	lda	keyrepwait1
 		beq	i0_dorep
 		dec	keyrepwait1
