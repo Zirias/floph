@@ -298,15 +298,25 @@ fsd_next:	inx
 		bne	fsd_row
 
 floppy_hashfile:
-		stx	fhf_read+2
-		tax
-fhf_read:	lda	$ff00,x
-		beq	sendbyte
+		lda	file_track,x
 		jsr	sendbyte
+		lda	file_sector,x
+		jsr	sendbyte
+
+floppy_receive:
+		jsr	getbyte
+		sec
+		beq	fr_done
+		sta	floppy_result
+		tay
+		ldx	#1
+fr_loop:	jsr	getbyte
+		sta	floppy_result,x
 		inx
-		bne	fhf_read
-		inc	fhf_read+2
-		bne	fhf_read
+		dey
+		bne	fr_loop
+		clc
+fr_done:	rts
 
 sendbyte:	sta	ZPS_0
 		ldy	#8
@@ -355,18 +365,3 @@ gb_wait:	lda	CIA2_PRA
 gb_ry:		ldy	#$ff
 		lda	ZPS_0
 		rts
-
-floppy_receive:
-		jsr	getbyte
-		sec
-		beq	fr_done
-		sta	floppy_result
-		tay
-		ldx	#1
-fr_loop:	jsr	getbyte
-		sta	floppy_result,x
-		inx
-		dey
-		bne	fr_loop
-		clc
-fr_done:	rts

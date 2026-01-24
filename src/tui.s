@@ -112,7 +112,18 @@ ti_initcolwr:	sta	$ff00,x
 cmdloop:	lda	cmd
 		beq	cmdloop
 		bmi	scrollup
-		ldx	scrollpos
+		lsr	a
+		bcs	scrolldown
+		ldx	dirpos
+		beq	hashdone
+		lda	#0
+		sta	lastkey
+		dex
+		jsr	floppy_hashfile
+hashdone:	lda	#0
+		sta	cmd
+		beq	cmdloop
+scrolldown:	ldx	scrollpos
 		inx
 		stx	scrollpos
 		jsr	floppy_showdir
@@ -143,7 +154,10 @@ isr0:
 		asl	VIC_IRR
 		lda	#1
 		sta	i0_kcbase+1
-		lda	CIA1_PRA
+		lda	cmd
+		beq	i0_dokb
+		jmp	i0_skipkb
+i0_dokb:	lda	CIA1_PRA
 		and	#$1f
 		eor	#$1f
 		bne	i0_skipkb
@@ -196,7 +210,8 @@ i0_handlekey:	dex
 		beq	i0_kbdone
 		dex
 		beq	i0_up
-		; handle enter
+		lda	#$2
+		sta	cmd
 		bne	i0_kbdone
 i0_kbinval:	lda	#$0
 		sta	lastkey

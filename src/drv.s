@@ -16,17 +16,6 @@ BUF_1=		4
 
 .segment "DRV"
 
-start:		lda	#CSR_0
-		sta	sr_csr+1
-		sta	cr_csr_0+1
-		sta	cr_csr_1+1
-		lda	#TRACK_0
-		sta	sr_track+1
-		lda	#SECT_0
-		sta	sr_sect+1
-		lda	#BUF_0
-		sta	hashloop+2
-		sta	hl_nextsect+2
 		lda	VIA2_PRB
 		ora	#8
 		sta	VIA2_PRB
@@ -36,7 +25,11 @@ start:		lda	#CSR_0
 		lda	#$17
 		jsr	sendbyte
 		jsr	completeread
-		ldx	#0
+		bcs	bamok
+		lda	#ST_READERR
+		jsr	senderror
+		rts
+bamok:		ldx	#0
 disknameloop:	lda	$390,x
 		jsr	sendbyte
 		inx
@@ -46,7 +39,11 @@ disknameloop:	lda	$390,x
 		ldx	#1
 dirsectloop:	jsr	startread
 		jsr	completeread
-		ldx	#2
+		bcs	dirsectok
+		lda	#ST_READERR
+		jsr	senderror
+		rts
+dirsectok:	ldx	#2
 dirsendloop:	lda	#21
 		jsr	sendbyte
 dirinnerloop:	lda	$300,x
@@ -72,80 +69,32 @@ dirinnerloop:	lda	$300,x
 dirnextsect:	ldx	$301
 		lda	$300
 		bne	dirsectloop
-		lda	VIA2_PRB
-		and	#$f7
-		sta	VIA2_PRB
 		lda	#0
 		jsr	sendbyte
 
-		ldx	#0
-nameloop:	jsr	getbyte
-		beq	havename
-		sta	name,x
-		inx
-		bne	nameloop
-havename:	lda	#$a0
-		sta	name,x
-		inx
-		cpx	#$10
-		bcc	lenok
-		ldx	#$10
-lenok:		stx	DIR_TMP0
+cmdloop:	lda	VIA2_PRB
+		and	#$f7
+		sta	VIA2_PRB
+		lda	#CSR_0
+		sta	sr_csr+1
+		sta	cr_csr_0+1
+		sta	cr_csr_1+1
+		lda	#TRACK_0
+		sta	sr_track+1
+		lda	#SECT_0
+		sta	sr_sect+1
+		lda	#BUF_0
+		sta	hashloop+2
+		sta	hl_nextsect+2
+		jsr	getbyte
+		tay
+		jsr	getbyte
+		tax
 		lda	VIA2_PRB
 		ora	#8
 		sta	VIA2_PRB
-		lda	#18
-		ldx	#1
-readdir:	jsr	startread
-		lda	#$02
-		sta	checkfile+1
-		lda	#$05
-		sta	checkname+1
-		jsr	completeread
-		bcs	checkfile
-readerr:	lda	#ST_READERR
-		jsr	senderror
-		jmp	start
-checkfile:	lda	$302
-		tax
-		and	#$3
-		beq	checknext
-		txa
-		eor	#$80
-		and	#$fc
-		bne	checknext
-		tax
-checkname:	lda	$305,x
-		cmp	name,x
-		bne	checknext
-		inx
-		cpx	DIR_TMP0
-		bne	checkname
-		ldx	checkfile+1
-		inx
-		stx	ldsttrack+1
-		inx
-		stx	ldstsect+1
-ldstsect:	ldx	$3ff
-ldsttrack:	lda	$3ff
-		bne	found
-checknext:	clc
-		lda	checkfile+1
-		adc	#$20
-		sta	checkfile+1
-		clc
-		lda	checkname+1
-		adc	#$20
-		sta	checkname+1
-		bcc	checkfile
-		ldx	$301
-		lda	$300
-		bne	readdir
-		lda	#ST_NOTFOUND
-		jsr	senderror
-		jmp	start
-
-found:		jsr	startread
+		tya
+		jsr	startread
 		jsr	fnv1a_init
 		jsr	completeread
 		bcc	readerr
@@ -174,7 +123,9 @@ hl_nextsect:	ldy	$300
 		jsr	fnv1a_hashbuf
 		jsr	completeread
 		bcs	hashloop
-		jmp	readerr
+readerr:	lda	#ST_READERR
+		jsr	senderror
+		jmp	cmdloop
 hashfinal:	dex
 		txa
 		tay
@@ -188,9 +139,7 @@ sendhash:	lda	fnv1a_hash,x
 		inx
 		cpx	#8
 		bne	sendhash
-		lda	#0
-		jsr	sendbyte
-		jmp	start
+		jmp	cmdloop
 
 startread:
 sr_track:	sta	TRACK_0
@@ -224,9 +173,6 @@ senderror:
 		lda	#1
 		jsr	sendbyte
 		txa
-sendfinalbyte:
-		jsr	sendbyte
-		lda	#0
 
 sendbyte:	sta	GB_TMP
 		ldy	#8
