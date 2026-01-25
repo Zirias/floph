@@ -200,7 +200,41 @@ houtld:		sta	$ffff,y
 tui_done:
 		lda	#0
 		sta	VIC_IRM
-		jmp	*
+		lda	#$d8
+		sta	td_restcolwr+2
+		lda	#>save_colors
+		sta	td_restcolrd+2
+td_wait1:	lda	VIC_RASTER
+		bne	td_wait1
+		bit	VIC_CTL1
+		bmi	td_wait1
+		lda	save_bordercol
+		sta	BORDER_COLOR
+		lda	save_bgcol
+		sta	BG_COLOR_0
+		lda	#$15
+		sta	VIC_MEMCTL
+		lda	CIA2_PRA
+		ora	#3
+		sta	CIA2_PRA
+		ldy	#4
+		ldx	#0
+td_restcolrd:	lda	$ff00,x
+td_restcolwr:	sta	$ff00,x
+		inx
+		bne	td_restcolrd
+		inc	td_restcolrd+2
+		inc	td_restcolwr+2
+		dey
+		bne	td_restcolrd
+		lda	#$37
+		sta	$1
+		lda	#$81
+		sta	CIA1_ICR
+		lda	CIA2_ICR
+		lda	#$ff
+		sta	CIA1_DDRA
+		rts
 
 isr0:
 		sta	i0_ra+1
