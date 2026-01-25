@@ -26,8 +26,6 @@ file_size_h:	.res	$100
 file_type:	.res	$100
 file_track:	.res	$100
 file_sector:	.res	$100
-file_havehash:	.res	$100
-file_hash:	.res	$800
 
 directory:	.res	$2800
 
@@ -179,14 +177,13 @@ frd_ok0:	ldx	floppy_result+1
 		sta	file_size_l,x
 		lda	floppy_result+21
 		sta	file_size_h,x
-		lda	#0
-		sta	file_havehash,x
-		sta	ZPS_0
-		sta	ZPS_1
-		sta	ZPS_2
 		inx
 		beq	frd_mainloop		; truncate after file #255
 		stx	disk_nfiles
+		lda	#0
+		sta	ZPS_0
+		sta	ZPS_1
+		sta	ZPS_2
 		lda	dirptr_l,x
 		sta	wd_store+1
 		lda	dirptr_h,x
@@ -303,22 +300,6 @@ floppy_hashfile:
 		lda	file_track,x
 		jsr	sendbyte
 		lda	file_sector,x
-		jsr	sendbyte
-
-floppy_receive:
-		jsr	getbyte
-		sec
-		beq	fr_done
-		sta	floppy_result
-		tay
-		ldx	#1
-fr_loop:	jsr	getbyte
-		sta	floppy_result,x
-		inx
-		dey
-		bne	fr_loop
-		clc
-fr_done:	rts
 
 sendbyte:	sta	ZPS_0
 		ldy	#8
@@ -341,6 +322,21 @@ sb_waitack:	bit	CIA2_PRA
 		dey
 		bne	sb_loop
 		rts
+
+floppy_receive:
+		jsr	getbyte
+		sec
+		beq	fr_done
+		sta	floppy_result
+		tay
+		ldx	#1
+fr_loop:	jsr	getbyte
+		sta	floppy_result,x
+		inx
+		dey
+		bne	fr_loop
+		clc
+fr_done:	rts
 
 getbyte:	sty	gb_ry+1
 		ldy	#8

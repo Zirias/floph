@@ -167,6 +167,7 @@ showhash:	ldx	dirpos
 		sta	houths+2
 		sta	houtls+2
 
+		jsr	floppy_receive
 		lda	floppy_result
 		cmp	#8
 		beq	hashout
