@@ -11,6 +11,7 @@ KB_DOWN=	2
 KB_LEFT=	3
 KB_UP=		4
 KB_ENTER=	5
+KB_STOP=	6
 
 .bss
 
@@ -116,7 +117,10 @@ cmdwait:	lda	cmd
 		bmi	scrollup
 		lsr	a
 		bcs	scrolldown
-		ldx	dirpos
+		lsr	a
+		bcs	hashfile
+		jmp	tui_done
+hashfile:	ldx	dirpos
 		beq	cmdloop
 		lda	#0
 		sta	lastkey
@@ -193,6 +197,11 @@ houtld:		sta	$ffff,y
 		bne	houtloop
 		jmp	cmdloop
 
+tui_done:
+		lda	#0
+		sta	VIC_IRM
+		jmp	*
+
 isr0:
 		sta	i0_ra+1
 		stx	i0_rx+1
@@ -215,14 +224,16 @@ isr0:
 i0_dokb:	lda	CIA1_PRA
 		and	#$1f
 		eor	#$1f
-		bne	i0_skipkb
-		lda	#$ff
+		beq	i0_nojs
+		jmp	i0_skipkb
+i0_nojs:	lda	#$ff
 		sta	CIA1_DDRA
 		lda	#$7f
 		sta	CIA1_PRA
-		lda	CIA1_PRB
-		and	#$4		; control
-		beq	i0_kbinval
+		lda	#$4
+		bit	CIA1_PRB
+		beq	i0_kbinval	; control
+		bpl	i0_stopkey
 		lda	#$bf
 		sta	CIA1_PRA
 		lda	CIA1_PRB
@@ -251,6 +262,8 @@ i0_noenter:	lsr	a
 		inx
 		and	#$10
 		bne	i0_kbinval
+		beq	i0_kbval
+i0_stopkey:	ldx	#6
 i0_kbval:	txa
 		cmp	lastkey
 		sta	lastkey
@@ -266,7 +279,10 @@ i0_handlekey:	dex
 		dex
 		beq	i0_up
 		lda	#$2
-		sta	cmd
+		dex
+		beq	i0_storecmd
+		asl	a
+i0_storecmd:	sta	cmd
 		bne	i0_kbdone
 i0_kbinval:	lda	#$0
 		sta	lastkey
