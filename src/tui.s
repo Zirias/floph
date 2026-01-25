@@ -154,6 +154,8 @@ showhash:	ldx	dirpos
 		asl	a
 		rol	ZPS_5
 		adc	ZPS_4
+		bcc	*+4
+		inc	ZPS_5
 		sta	houths+1
 		sta	houtls+1
 		lda	ZPS_5
