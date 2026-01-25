@@ -3,10 +3,19 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#ifdef _WIN32
+#  include <fcntl.h>
+#  include <io.h>
+#endif
+
 int main(void)
 {
     uint64_t h = 0xcbf29ce484222325;
     int c;
+
+#ifdef _WIN32
+    _setmode(_fileno(stdin), _O_BINARY);
+#endif
 
     while ((c = fgetc(stdin)) != EOF)
     {
