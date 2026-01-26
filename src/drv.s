@@ -22,14 +22,14 @@ BUF_1=		4
 		lda	#18
 		ldx	#0
 		jsr	startread
-		lda	#$17
-		jsr	sendbyte
 		jsr	completeread
 		bcs	bamok
 		lda	#ST_READERR
 		jsr	senderror
 		rts
-bamok:		ldx	#0
+bamok:		lda	#$17
+		jsr	sendbyte
+		ldx	#0
 disknameloop:	lda	$390,x
 		jsr	sendbyte
 		inx
