@@ -8,3 +8,5 @@
 .import floppy_result
 .import dirptr_l
 .import dirptr_h
+.import file_size_l
+.import file_size_h

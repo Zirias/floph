@@ -13,6 +13,10 @@ KB_UP=		4
 KB_ENTER=	5
 KB_STOP=	6
 
+.data
+
+progress:	.byte	$67, "                ", $65, 0
+
 .bss
 
 cmd:		.res	1
@@ -162,13 +166,111 @@ showhash:	ldx	dirpos
 		inc	ZPS_5
 		sta	houths+1
 		sta	houtls+1
+		sta	houtcln1+1
+		sta	houtcln2+1
+		sta	pbinits+1
+		sta	pbouts+1
 		lda	ZPS_5
 		ora	#$a0
 		sta	houths+2
 		sta	houtls+2
+		sta	houtcln1+2
+		sta	houtcln2+2
+		sta	pbinits+2
+		sta	pbouts+2
+		ldx	#0
+		stx	ZPS_6
+		stx	ZPS_7
+		ldy	#22
+pbinit:		lda	progress,x
+		beq	hashwait
+pbinits:	sta	$ffff,y
+		iny
+		inx
+		bpl	pbinit
 
-		jsr	floppy_receive
-		lda	floppy_result
+hashwait:	jsr	floppy_receive
+		bcs	hashtick
+		jmp	hashnotick
+
+hashtick:	inc	ZPS_6
+		bne	ticknocarry
+		inc	ZPS_7
+ticknocarry:	ldx	dirpos
+		dex
+		lda	file_size_l,x
+		sta	ZPS_C
+		lda	file_size_h,x
+		sta	ZPS_D
+		lda	ZPS_6
+		sta	ZPS_E
+		lda	ZPS_7
+		sta	ZPS_F
+
+		lda	#0
+		sta	ZPS_9
+		sta	ZPS_A
+		sta	ZPS_B
+		lda	ZPS_C
+		bne	frac_start
+		lda	ZPS_D
+		beq	frac_err
+frac_start:	lda	ZPS_E
+		asl	a
+		rol	ZPS_F
+		asl	a
+		rol	ZPS_F
+		asl	a
+		rol	ZPS_F
+		asl	a
+		rol	ZPS_F
+		asl	a
+		rol	ZPS_F
+		sta	ZPS_E
+
+		ldy	#16
+div_loop:	asl	ZPS_E
+		rol	ZPS_F
+		rol	ZPS_A
+		rol	ZPS_B
+		sec
+		lda	ZPS_A
+		sbc	ZPS_C
+		sta	ZPS_8
+		lda	ZPS_B
+		sbc	ZPS_D
+		bcs	div_1bit
+		rol	ZPS_9
+		bcc	div_next
+		bcs	frac_err
+div_1bit:	sta	ZPS_B
+		lda	ZPS_8
+		sta	ZPS_A
+		rol	ZPS_9
+		bcs	frac_err
+div_next:	dey
+		bne	div_loop
+		lda	ZPS_9
+		cmp	#$20
+		bcc	frac_ok
+frac_err:	lda	#$20
+		sta	ZPS_9
+frac_ok:	ldy	#22
+		lda	ZPS_9
+		lsr	a
+		tax
+		beq	pbfirst
+		lda	#$66
+pboutloop:	iny
+pbouts:		sta	$ffff,y
+		dex
+		bmi	pbdone
+		bne	pboutloop
+pbfirst:	lda	#$5c
+		bcs	pboutloop
+pbdone:		jmp	hashwait
+
+hashnotick:	lda	floppy_result
 		cmp	#8
 		beq	hashout
 hashout:	ldy	#23
@@ -196,6 +298,11 @@ houtld:		sta	$ffff,y
 		iny
 		dex
 		bne	houtloop
+		lda	#$20
+		ldy	#22
+houtcln1:	sta	$ffff,y
+		ldy	#39
+houtcln2:	sta	$ffff,y
 		jmp	cmdloop
 
 tui_done:

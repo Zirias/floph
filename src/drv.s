@@ -121,6 +121,8 @@ hl_nextsect:	ldy	$300
 		eor	#7
 		ldy	#254
 		jsr	fnv1a_hashbuf
+		lda	#0
+		jsr	sendbyte
 		jsr	completeread
 		bcs	hashloop
 readerr:	lda	#ST_READERR

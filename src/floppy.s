@@ -13,6 +13,8 @@
 .export floppy_result
 .export dirptr_l
 .export dirptr_h
+.export file_size_l
+.export file_size_h
 
 .bss
 
