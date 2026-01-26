@@ -83,18 +83,21 @@ floppy_init:
 		sta	fi_rdin+1
 		lda	#>(DRV_LOAD-$60)
 		sta	fi_rdin+2
-fi_upload:	lda	$ba
+fi_upload:	lda	#0
+		sta	$90
+		lda	$ba
 		jsr	KRNL_LISTEN
-		jsr	KRNL_READST
-		bpl	fi_proceed
-		sec
-		rts
-fi_proceed:	lda	#$6f
+		lda	#$6f
 		jsr	KRNL_SECOND
 		ldx	#mwcmd_len - 1
 fi_mwhdr:	lda	mwcmd,x
 		jsr	KRNL_CIOUT
-		dex
+		bit	$90
+		bpl	fi_sendok
+		jsr	KRNL_UNLSN
+		sec
+		rts
+fi_sendok:	dex
 		bpl	fi_mwhdr
 		ldx	#$60
 fi_rdin:	lda	$ffff,x
