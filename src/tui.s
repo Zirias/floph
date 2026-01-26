@@ -16,7 +16,8 @@ KB_STOP=	6
 .data
 
 progress:	.byte	$67, "                ", $65, 0
-
+readerrmsg:	.byte	"** ", $12, $5, $1, $4, " "
+		.byte	$5, $12, $12, $f, $12, " **"
 .bss
 
 cmd:		.res	1
@@ -164,6 +165,7 @@ showhash:	ldx	dirpos
 		adc	ZPS_4
 		bcc	*+4
 		inc	ZPS_5
+		sta	errout+1
 		sta	houths+1
 		sta	houtls+1
 		sta	houtcln1+1
@@ -172,6 +174,7 @@ showhash:	ldx	dirpos
 		sta	pbouts+1
 		lda	ZPS_5
 		ora	#$a0
+		sta	errout+2
 		sta	houths+2
 		sta	houtls+2
 		sta	houtcln1+2
@@ -273,6 +276,14 @@ pbdone:		jmp	hashwait
 hashnotick:	lda	floppy_result
 		cmp	#8
 		beq	hashout
+		ldy	#38
+		ldx	#15
+readerrloop:	lda	readerrmsg,x
+errout:		sta	$ffff,y
+		dey
+		dex
+		bpl	readerrloop
+		bmi	hclean
 hashout:	ldy	#23
 		ldx	#8
 houtloop:	lda	floppy_result,x
@@ -298,7 +309,7 @@ houtld:		sta	$ffff,y
 		iny
 		dex
 		bne	houtloop
-		lda	#$20
+hclean:		lda	#$20
 		ldy	#22
 houtcln1:	sta	$ffff,y
 		ldy	#39
