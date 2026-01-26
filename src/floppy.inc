@@ -1,3 +1,4 @@
+.import floppy_detect
 .import floppy_init
 .import floppy_readdir
 .import floppy_showdir

@@ -3,6 +3,7 @@
 .include "kernal.inc"
 .include "zpshared.inc"
 
+.export floppy_detect
 .export floppy_init
 .export floppy_readdir
 .export floppy_showdir
@@ -49,8 +50,29 @@ filetypechar:	.byte	$13, $10, $15	; S, P, U
 
 .code
 
+floppy_detect:
+		lda	#0
+		sta	ZPS_0
+		lda	#3
+		sta	ZPS_1
+fd_loop:	lda	#0
+		sta	$90
+		lda	ZPS_1
+		ora	#8
+		jsr	KRNL_LISTEN
+		jsr	KRNL_UNLSN
+		lda	$90
+		bpl	fd_found
+		clc
+		bcc	fd_next
+fd_found:	sec
+fd_next:	rol	ZPS_0
+		dec	ZPS_1
+		bpl	fd_loop
+		lda	ZPS_0
+		rts
+
 floppy_init:
-		sta	$ba
 		lda	#<((DRV_SIZE+$1f)>>5)
 		sta	ZPS_0
 		lda	#<DRV_RUN
