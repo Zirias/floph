@@ -29,6 +29,7 @@ drv10entry:	.byte	" drive #10 ", $d, 0
 drv11entry:	.byte	" drive #11 ", $d, 0
 connecttxt:	.byte	"connecting to drive ... ", $d, 0
 uploaderrtxt:	.byte	"error uploading drive code!", $d, 0
+direrrortxt:	.byte	"error loading directory!", $d, 0
 
 .bss
 
@@ -209,7 +210,10 @@ connect:	lda	#<connecttxt
 		ldx	#>uploaderrtxt
 		jmp	puts
 displaydir:	jsr	floppy_readdir
+		bcs	direrror
 		jmp	tui_run
+direrror:	lda	#<direrrortxt
+		ldx	#>direrrortxt
 
 puts:		sta	putsrd+1
 		stx	putsrd+2
