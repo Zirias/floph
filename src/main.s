@@ -110,69 +110,58 @@ drivemenu:	tax
 		jsr	puts
 		lda	ZPS_0
 		sta	ZPS_1
-		lda	#0
-		sta	ZPS_2
+		ldx	#0
+		stx	ZPS_2
 		lsr	ZPS_1
 		bcc	dm_skip8
-		lda	#8
-		ldx	ZPS_2
-		sta	menudrv,x
-		ldy	$d6
-		lda	$d9,y
-		and	#$7f
-		sta	menuscrh,x
-		lda	$ecf0,y
-		sta	menuscrl,x
 		lda	#<drv8entry
 		ldx	#>drv8entry
 		jsr	puts
-		inc	ZPS_2
-dm_skip8:	lsr	ZPS_1
-		bcc	dm_skip9
-		lda	#9
+		lda	#8
 		ldx	ZPS_2
 		sta	menudrv,x
-		ldy	$d6
-		lda	$d9,y
-		and	#$7f
-		sta	menuscrh,x
-		lda	$ecf0,y
-		sta	menuscrl,x
+		inx
+		stx	ZPS_2
+dm_skip8:	lsr	ZPS_1
+		bcc	dm_skip9
 		lda	#<drv9entry
 		ldx	#>drv9entry
 		jsr	puts
-		inc	ZPS_2
-dm_skip9:	lsr	ZPS_1
-		bcc	dm_skip10
-		lda	#10
+		lda	#9
 		ldx	ZPS_2
 		sta	menudrv,x
-		ldy	$d6
-		lda	$d9,y
-		and	#$7f
-		sta	menuscrh,x
-		lda	$ecf0,y
-		sta	menuscrl,x
+		inx
+		stx	ZPS_2
+dm_skip9:	lsr	ZPS_1
+		bcc	dm_skip10
 		lda	#<drv10entry
 		ldx	#>drv10entry
 		jsr	puts
-		inc	ZPS_2
+		lda	#10
+		ldx	ZPS_2
+		sta	menudrv,x
+		inx
+		stx	ZPS_2
 dm_skip10:	lsr	ZPS_1
 		bcc	dm_start
+		lda	#<drv11entry
+		ldx	#>drv11entry
+		jsr	puts
 		lda	#11
 		ldx	ZPS_2
 		sta	menudrv,x
+		inx
+dm_start:	dex
 		ldy	$d6
+dm_fillptrs:	dey
 		lda	$d9,y
 		and	#$7f
 		sta	menuscrh,x
 		lda	$ecf0,y
 		sta	menuscrl,x
-		lda	#<drv11entry
-		ldx	#>drv11entry
-		jsr	puts
-		inc	ZPS_2
-dm_start:	lda	#0
+		dex
+		bpl	dm_fillptrs
+		lda	#0
 		sta	menupos
 dm_invloop:	jsr	menu_inv
 dm_loop:	jsr	KRNL_GETIN
