@@ -7,6 +7,7 @@
 .export floppy_init
 .export floppy_readdir
 .export floppy_showdir
+.export floppy_hashdisk
 .export floppy_hashfile
 .export floppy_receive
 
@@ -322,6 +323,12 @@ fsd_next:	inx
 		bcc	fsd_row
 		inc	fsd_store+2
 		bne	fsd_row
+
+floppy_hashdisk:
+		lda	#0
+		jsr	sendbyte
+		lda	#35
+		bne	sendbyte
 
 floppy_hashfile:
 		lda	file_track,x

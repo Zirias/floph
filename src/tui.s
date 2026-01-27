@@ -126,11 +126,14 @@ cmdwait:	lda	cmd
 		bcs	hashfile
 		jmp	tui_done
 hashfile:	ldx	dirpos
-		beq	cmdloop
+		beq	hashdisk
 		lda	#0
 		sta	lastkey
 		dex
 		jsr	floppy_hashfile
+		jmp	showhash
+hashdisk:	stx	lastkey
+		jsr	floppy_hashdisk
 		jmp	showhash
 
 scrolldown:	ldx	scrollpos
@@ -200,11 +203,18 @@ hashtick:	inc	ZPS_6
 		bne	ticknocarry
 		inc	ZPS_7
 ticknocarry:	ldx	dirpos
-		dex
+		bne	fetchfilesize
+		lda	#<683
+		sta	ZPS_C
+		lda	#>683
+		bne	initfrac
+
+fetchfilesize:	dex
 		lda	file_size_l,x
 		sta	ZPS_C
 		lda	file_size_h,x
-		sta	ZPS_D
+initfrac:	sta	ZPS_D
+
 		lda	ZPS_6
 		sta	ZPS_E
 		lda	ZPS_7

@@ -36,8 +36,10 @@ fi_loop:	lda	fnv1a_initval,x
 ;
 fnv1a_hashbuf:
 		sta	fnv1a_mainloop+2
+		tya
+		beq	fnv1a_fullbuf
 		lda	#$2
-		sta	fnv1a_mainloop+1
+fnv1a_fullbuf:	sta	fnv1a_mainloop+1
 fnv1a_mainloop:	lda	$ffff
 		eor	fnv1a_hash
 		sta	fnv1a_hash

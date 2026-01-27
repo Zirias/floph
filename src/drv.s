@@ -14,6 +14,11 @@ SECT_1=		9
 BUF_0=		3
 BUF_1=		4
 
+RQTRACK=	$35
+CURTRACK=	$37
+SECTORS=	$3b
+SECTNO=		$3c
+
 .segment "DRV"
 
 		lda	VIA2_PRB
@@ -84,12 +89,24 @@ cmdloop:	lda	VIA2_PRB
 		lda	#SECT_0
 		sta	sr_sect+1
 		lda	#BUF_0
-		sta	hashloop+2
+		sta	hl_nexttrack+2
 		sta	hl_nextsect+2
 		jsr	getbyte
+		sta	RQTRACK
 		tay
-		jsr	getbyte
-		tax
+		bne	trackok
+		iny
+		sty	CURTRACK
+		jsr	getbyte		; ignored for now
+		lda	#20
+		sta	SECTORS
+		sta	sectinit+1
+		sta	subsects+1
+		lda	#0
+		sta	SECTNO
+		beq	starthashing
+trackok:	jsr	getbyte
+starthashing:	tax
 		lda	VIA2_PRB
 		ora	#8
 		sta	VIA2_PRB
@@ -97,11 +114,50 @@ cmdloop:	lda	VIA2_PRB
 		jsr	startread
 		jsr	fnv1a_init
 		jsr	completeread
-		bcc	readerr
-hashloop:	ldx	$301
-hl_nextsect:	ldy	$300
+		bcs	hashloop
+		jmp	readerr
+hashloop:	lda	RQTRACK
+		bne	hl_nextsect
+		dec	SECTORS
+		bpl	disk_nextsect
+		ldy	CURTRACK
+		iny
+		cpy	#18
+		bne	disk_skip0
+		sty	sectinit+1
+		sty	subsects+1
+disk_skip0:	cpy	#25
+		bne	disk_skip1
+		lda	#17
+		sta	sectinit+1
+		sta	subsects+1
+disk_skip1:	cpy	#31
+		bne	disk_skip2
+		lda	#16
+		sta	sectinit+1
+		sta	subsects+1
+disk_skip2:	cpy	#36
+		bne	disk_skip3
+		ldy	#0
+		beq	hf_call
+disk_skip3:	sty	CURTRACK
+sectinit:	lda	#$ff
+		sta	SECTORS
+		beq	hashsector
+disk_nextsect:	clc
+		lda	SECTNO
+		adc	#11
+		sta	SECTNO
+subsects:	sbc	#$ff
+		bcc	dns_ok
+		sta	SECTNO
+dns_ok:		ldx	SECTNO
+		ldy	CURTRACK
+		bne	hashsector
+hl_nextsect:	ldx	$301
+hl_nexttrack:	ldy	$300
 		beq	hashfinal
-		lda	sr_csr+1
+hashsector:	lda	sr_csr+1
 		eor	#1
 		sta	sr_csr+1
 		sta	cr_csr_0+1
@@ -111,27 +167,30 @@ hl_nextsect:	ldy	$300
 		sta	sr_track+1
 		ora	#1
 		sta	sr_sect+1
-		lda	hashloop+2
+		lda	hl_nexttrack+2
 		eor	#7
-		sta	hashloop+2
+		sta	hl_nexttrack+2
 		sta	hl_nextsect+2
 		tya
 		jsr	startread
-		lda	hashloop+2
+		lda	hl_nexttrack+2
 		eor	#7
+		ldy	RQTRACK
+		beq	hs_call
 		ldy	#254
-		jsr	fnv1a_hashbuf
+hs_call:	jsr	fnv1a_hashbuf
 		lda	#0
 		jsr	sendbyte
 		jsr	completeread
-		bcs	hashloop
+		bcc	readerr
+		jmp	hashloop
 readerr:	lda	#ST_READERR
 		jsr	senderror
 		jmp	cmdloop
 hashfinal:	dex
 		txa
 		tay
-		lda	hashloop+2
+hf_call:	lda	hl_nexttrack+2
 		jsr	fnv1a_hashbuf
 		lda	#8
 		jsr	sendbyte
