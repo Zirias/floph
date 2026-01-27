@@ -3,4 +3,6 @@
 *.prg
 *.exe
 .*.swp
+*.tar.*
+*.d64
 obj/
