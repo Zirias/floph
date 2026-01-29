@@ -84,10 +84,9 @@ static int hashdisk(FILE *input)
 	for (unsigned i = 0; i < sectors; ++i)
 	{
 	    sector %= sectors;
-	    if (errinfo && errinfo[sector] > 1)
+	    if (errinfo && errinfo[sector] > 1 && errinfo[sector] < 0x10)
 	    {
-		unsigned char errcode = errinfo[sector] & 0xf;
-		fnv1a(&errcode, 1);
+		fnv1a(errinfo+sector, 1);
 	    }
 	    else
 	    {

@@ -184,13 +184,6 @@ hs_call:	jsr	fnv1a_hashbuf
 		jsr	completeread
 		bcc	readerr
 		jmp	hashloop
-readerr:	ldy	RQTRACK
-		bne	reporterr
-		sta	fnv1a_hashbyte
-		jmp	hashloop
-reporterr:	lda	#ST_READERR
-		jsr	senderror
-		jmp	cmdloop
 hashfinal:	dex
 		txa
 		tay
@@ -204,6 +197,17 @@ sendhash:	lda	fnv1a_hash,x
 		inx
 		cpx	#8
 		bne	sendhash
+		jmp	cmdloop
+readerr:	ldy	RQTRACK
+		bne	reporterr
+		cmp	#3
+		beq	reporterr
+		cmp	#$f
+		beq	reporterr
+		sta	fnv1a_hashbyte
+		jmp	hashloop
+reporterr:	lda	#ST_READERR
+		jsr	senderror
 		jmp	cmdloop
 
 startread:
