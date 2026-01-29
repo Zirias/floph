@@ -32,43 +32,24 @@ SECTNO=		$3c
 		lda	#ST_READERR
 		jsr	senderror
 		rts
-bamok:		lda	#$17
-		jsr	sendbyte
-		ldx	#0
-disknameloop:	lda	$390,x
+bamok:		ldx	#0
+bamsendloop:	lda	$300,x
 		jsr	sendbyte
 		inx
-		cpx	#$17
-		bne	disknameloop
+		bne	bamsendloop
 		lda	#18
 		ldx	#1
 dirsectloop:	jsr	startread
 		jsr	completeread
-		bcs	dirsectok
+		bcs	dirsend
 		lda	#ST_READERR
 		jsr	senderror
 		rts
-dirsectok:	ldx	#2
-dirsendloop:	lda	#21
+dirsend:	ldx	#2
+		lda	#254
 		jsr	sendbyte
-dirinnerloop:	lda	$300,x
+dirsendloop:	lda	$300,x
 		jsr	sendbyte
-		inx
-		txa
-		and	#$1f
-		cmp	#$15
-		bcc	dirinnerloop
-		txa
-		adc	#8
-		tax
-		lda	$300,x
-		jsr	sendbyte
-		inx
-		lda	$300,x
-		jsr	sendbyte
-		inx
-		beq	dirnextsect
-		inx
 		inx
 		bne	dirsendloop
 dirnextsect:	ldx	$301
@@ -97,7 +78,8 @@ cmdloop:	lda	VIA2_PRB
 		bne	trackok
 		iny
 		sty	CURTRACK
-		jsr	getbyte		; ignored for now
+		jsr	getbyte
+		sta	disk_skip2+1
 		lda	#20
 		sta	SECTORS
 		sta	sectinit+1
@@ -136,7 +118,7 @@ disk_skip1:	cpy	#31
 		lda	#16
 		sta	sectinit+1
 		sta	subsects+1
-disk_skip2:	cpy	#36
+disk_skip2:	cpy	#$ff
 		bne	disk_skip3
 		ldy	#0
 		ldx	#0

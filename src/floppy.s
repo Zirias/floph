@@ -25,6 +25,7 @@ floppy_result:	.res	$100
 .segment "ALBSS"
 
 .align $100
+bam:		.res	$100
 file_size_l:	.res	$100
 file_size_h:	.res	$100
 file_type:	.res	$100
@@ -50,6 +51,8 @@ dirptr_h:	.repeat $100,i
 		.endrep
 
 filetypechar:	.byte	$13, $10, $15	; S, P, U
+
+endtrack:	.byte	36, 41, 43
 
 .code
 
@@ -149,21 +152,17 @@ frd_clrdir:	sta	$ff00,x
 		inc	frd_clrdir+2
 		dey
 		bne	frd_clrdir
-		jsr	floppy_receive
-		bcc	frd_diskid
-		rts
-frd_diskid:	lda	floppy_result
-		cmp	#$17
-		beq	frd_diskok
-		sec
-		rts
-frd_diskok:	lda	#<directory
+frd_bamloop:	jsr	getbyte
+		sta	bam,y
+		iny
+		bne	frd_bamloop
+		lda	#<directory
 		sta	wd_store+1
 		lda	#>directory
 		sta	wd_store+2
 		ldx	#0
 		stx	ZPS_3
-frd_dnameloop:	lda	floppy_result+1,x
+frd_dnameloop:	lda	bam+$90,x
 		jsr	screencode
 		cpx	#$12
 		bcs	frd_dirrev
@@ -182,39 +181,52 @@ frd_mainloop:	jsr	floppy_receive
 		lda	disk_nfiles
 		rts
 frd_parse:	lda	floppy_result
-		cmp	#21
-		beq	frd_ok0
-		sec
+		cmp	#254
+		bne	frd_done
+		ldx	#0
+		stx	ZPS_4
+		beq	frd_firstentry
+frd_done:	sec
 		rts
-frd_ok0:	ldx	floppy_result+1
-		beq	frd_mainloop		; ignore DEL
-		bpl	frd_mainloop		; ignore unclosed
-		txa
+
+frd_nextentry:	clc
+		lda	ZPS_4
+		adc	#$20
+		bcs	frd_mainloop
+		sta	ZPS_4
+		tax
+frd_firstentry:	ldy	floppy_result+1,x
+		beq	frd_nextentry		; ignore DEL
+		bpl	frd_nextentry		; ignore unclosed
+		tya
 		and	#$fc
 		eor	#$80
-		bne	frd_mainloop		; ignore REL + unknown types
-		txa
-		and	#3			; mask type bits
-		ldx	disk_nfiles
-		sta	file_type,x
-		lda	floppy_result+2
-		sta	file_track,x
-		lda	floppy_result+3
-		sta	file_sector,x
-		lda	floppy_result+20
-		sta	file_size_l,x
-		lda	floppy_result+21
-		sta	file_size_h,x
-		inx
-		beq	frd_mainloop		; truncate after file #255
-		stx	disk_nfiles
+		bne	frd_nextentry		; ignore REL + unknown types
+		tya
+		and	#3
+		sta	frd_typeidx+1
+		ldy	disk_nfiles
+		sta	file_type,y
+		lda	floppy_result+2,x
+		sta	file_track,y
+		lda	floppy_result+3,x
+		sta	file_sector,y
+		lda	floppy_result+$1d,x
+		sta	file_size_l,y
+		sta	ZPS_5
+		lda	floppy_result+$1e,x
+		sta	file_size_h,y
+		sta	ZPS_6
+		iny
+		beq	frd_nextentry		; truncate after file #255
+		sty	disk_nfiles
 		lda	#0
 		sta	ZPS_0
 		sta	ZPS_1
 		sta	ZPS_2
-		lda	dirptr_l,x
+		lda	dirptr_l,y
 		sta	wd_store+1
-		lda	dirptr_h,x
+		lda	dirptr_h,y
 		sta	wd_store+2
 		ldx	#$10
 frd_szloop:	ldy	#2
@@ -226,8 +238,8 @@ frd_addloop:	lda	ZPS_0,y
 frd_noadd:	dey
 		bpl	frd_addloop
 		ldy	#2
-		asl	floppy_result+20
-		rol	floppy_result+21
+		asl	ZPS_5
+		rol	ZPS_6
 frd_rolloop:	lda	ZPS_0,y
 		rol	a
 		cmp	#$10
@@ -248,21 +260,21 @@ frd_rolnext:	dey
 		jsr	writedir
 		lda	#$20
 		jsr	writedir
-		ldx	#0
+
+		ldx	ZPS_4
 frd_nameloop:	lda	floppy_result+4,x
 		jsr	screencode
 		jsr	writedir
 		inx
-		cpx	#$10
+		txa
+		and	#$f
 		bne	frd_nameloop
 		lda	#$20
 		jsr	writedir
-		lda	floppy_result+1
-		and	#$3
-		tax
+frd_typeidx:	ldx	#$ff
 		lda	filetypechar-1,x
 		jsr	writedir
-		jmp	frd_mainloop
+		jmp	frd_nextentry
 
 screencode:
 		bmi	sc_shifted
@@ -327,7 +339,7 @@ fsd_next:	inx
 floppy_hashdisk:
 		lda	#0
 		jsr	sendbyte
-		lda	#35
+		lda	endtrack,x
 		bne	sendbyte
 
 floppy_hashfile:
