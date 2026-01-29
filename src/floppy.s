@@ -1,6 +1,7 @@
 .include "cia.inc"
 .include "drv.inc"
 .include "kernal.inc"
+.include "statuscode.inc"
 .include "zpshared.inc"
 
 .export floppy_detect
@@ -152,6 +153,11 @@ frd_clrdir:	sta	$ff00,x
 		inc	frd_clrdir+2
 		dey
 		bne	frd_clrdir
+		jsr	getbyte
+		cmp	#ST_OK
+		beq	frd_bamloop
+		sec
+		rts
 frd_bamloop:	jsr	getbyte
 		sta	bam,y
 		iny

@@ -30,9 +30,10 @@ SECTNO=		$3c
 		jsr	completeread
 		bcs	bamok
 		lda	#ST_READERR
-		jsr	senderror
-		rts
-bamok:		ldx	#0
+		jmp	sendbyte
+bamok:		lda	#ST_OK
+		jsr	sendbyte
+		ldx	#0
 bamsendloop:	lda	$300,x
 		jsr	sendbyte
 		inx
