@@ -90,11 +90,12 @@ static int hashdisk(FILE *input)
 	    }
 	    else
 	    {
-		fnv1a(base + 256 * sector, 256);
+		fnv1a(base + 0x100 * sector,
+			track == 18 && sector == 0 ? 0xf0 : 0x100);
 	    }
 	    sector += 11;
 	}
-	base += 256 * sectors;
+	base += 0x100 * sectors;
 	if (errinfo) errinfo += sectors;
 	switch (track)
 	{

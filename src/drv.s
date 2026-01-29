@@ -84,10 +84,10 @@ cmdloop:	lda	VIA2_PRB
 		sta	sr_csr+1
 		sta	cr_csr_0+1
 		sta	cr_csr_1+1
-		lda	#TRACK_0
-		sta	sr_track+1
-		lda	#SECT_0
-		sta	sr_sect+1
+		ldx	#TRACK_0
+		stx	sr_track+1
+		inx
+		stx	sr_sect+1
 		lda	#BUF_0
 		sta	hl_nexttrack+2
 		sta	hl_nextsect+2
@@ -139,6 +139,7 @@ disk_skip1:	cpy	#31
 disk_skip2:	cpy	#36
 		bne	disk_skip3
 		ldy	#0
+		ldx	#0
 		beq	hf_call
 disk_skip3:	sty	CURTRACK
 sectinit:	lda	#$ff
@@ -173,13 +174,22 @@ hashsector:	lda	sr_csr+1
 		sta	hl_nextsect+2
 		tya
 		jsr	startread
-		lda	hl_nexttrack+2
-		eor	#7
+		ldx	#0
 		ldy	RQTRACK
-		beq	hs_call
-		ldy	#254
-hs_call:	jsr	fnv1a_hashbuf
-		lda	#0
+		bne	hs_file
+		lda	$18
+		cmp	#18
+		bne	hs_call
+		lda	$19
+		bne	hs_call
+		ldy	#$f0
+		bne	hs_call
+hs_file:	ldy	#254
+		ldx	#2
+hs_call:	lda	hl_nexttrack+2
+		eor	#7
+		jsr	fnv1a_hashbuf
+		tya
 		jsr	sendbyte
 		jsr	completeread
 		bcc	readerr
@@ -187,6 +197,7 @@ hs_call:	jsr	fnv1a_hashbuf
 hashfinal:	dex
 		txa
 		tay
+		ldx	#2
 hf_call:	lda	hl_nexttrack+2
 		jsr	fnv1a_hashbuf
 		lda	#8
@@ -288,5 +299,3 @@ gb_ry:		ldy	#$ff
 exit:		pla
 		pla
 		rts
-
-name:		.res	$11
