@@ -184,7 +184,11 @@ hs_call:	jsr	fnv1a_hashbuf
 		jsr	completeread
 		bcc	readerr
 		jmp	hashloop
-readerr:	lda	#ST_READERR
+readerr:	ldy	RQTRACK
+		bne	reporterr
+		sta	fnv1a_hashbyte
+		jmp	hashloop
+reporterr:	lda	#ST_READERR
 		jsr	senderror
 		jmp	cmdloop
 hashfinal:	dex
@@ -210,19 +214,19 @@ sr_csr:		sta	CSR_0
 		rts
 
 completeread:
-		ldy	#5
+		ldy	#6
 cr_csr_0:	lda	CSR_0
 		bmi	cr_csr_0
 		cmp	#1
 		beq	cr_done
+		dey
+		beq	cr_fail
 		sei
 		lda	$16
 		sta	$12
 		lda	$17
 		sta	$13
-		dey
 		cli
-		beq	cr_fail
 		lda	#$80
 cr_csr_1:	sta	CSR_0
 		bmi	cr_csr_0

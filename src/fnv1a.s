@@ -1,4 +1,5 @@
 .export fnv1a_init
+.export fnv1a_hashbyte
 .export fnv1a_hashbuf
 
 .exportzp fnv1a_hash
@@ -36,12 +37,20 @@ fi_loop:	lda	fnv1a_initval,x
 ;
 fnv1a_hashbuf:
 		sta	fnv1a_mainloop+2
-		tya
+		ldx	#0
+fnv1a_hashbyte=	*-1
+		beq	fnv1a_normal
+		lda	#0
+		sta	fnv1a_hashbyte
+		txa
+		ldy	#1
+		bne	fnv1a_hashone
+fnv1a_normal:	tya
 		beq	fnv1a_fullbuf
 		lda	#$2
 fnv1a_fullbuf:	sta	fnv1a_mainloop+1
 fnv1a_mainloop:	lda	$ffff
-		eor	fnv1a_hash
+fnv1a_hashone:	eor	fnv1a_hash
 		sta	fnv1a_hash
 		sta	fnv1a_tmp
 

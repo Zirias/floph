@@ -12,9 +12,9 @@
 #define FNV1A_PRIME 0x100000001b3ULL
 
 const char *argv0 = "pfloph";
-
-unsigned char buf[200*1024];
 uint64_t hash = FNV1A_INIT;
+
+unsigned char buf[0x33000];
 
 static void fnv1a(unsigned char *d, size_t n)
 {
@@ -53,24 +53,50 @@ static int hashdisk(FILE *input)
 	if (sz >= sizeof buf) break;
     }
 
-    if (sz != 174848UL && sz != 175531UL)
+    unsigned tracks = 0;
+    unsigned char *errinfo = 0;
+
+    switch (sz)
+    {
+	case 174848UL:	tracks = 35; errinfo = 0; break;
+	case 175531UL:	tracks = 35; errinfo = buf + 174848UL; break;
+	case 196608UL:	tracks = 40; errinfo = 0; break;
+	case 197376UL:	tracks = 40; errinfo = buf + 196608UL; break;
+	case 205312UL:	tracks = 42; errinfo = 0; break;
+	case 206114UL:	tracks = 42; errinfo = buf + 205312UL; break;
+	default:	break;
+    }
+
+    if (!tracks)
     {
 	fputs("Not a supported D64 disk image.\n", stderr);
 	return EXIT_FAILURE;
     }
 
+    fprintf(stderr, "Found disk image with %d tracks, %s error info.\n",
+	    tracks, errinfo ? "with" : "without");
+
     unsigned char *base = buf;
     unsigned sectors = 21;
     unsigned sector = 0;
-    for (unsigned track = 1; track <= 35; ++track)
+    for (unsigned track = 1; track <= tracks; ++track)
     {
 	for (unsigned i = 0; i < sectors; ++i)
 	{
 	    sector %= sectors;
-	    fnv1a(base + 256 * sector, 256);
+	    if (errinfo && errinfo[sector] > 1)
+	    {
+		unsigned char errcode = errinfo[sector] & 0xf;
+		fnv1a(&errcode, 1);
+	    }
+	    else
+	    {
+		fnv1a(base + 256 * sector, 256);
+	    }
 	    sector += 11;
 	}
 	base += 256 * sectors;
+	if (errinfo) errinfo += sectors;
 	switch (track)
 	{
 	    case 17: sectors = 19; break;
