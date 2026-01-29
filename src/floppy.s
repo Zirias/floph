@@ -67,16 +67,15 @@ fd_loop:	lda	#0
 		lda	ZPS_1
 		ora	#8
 		jsr	KRNL_LISTEN
+		lda	#$6f
+		jsr	KRNL_SECOND
+		asl	$90
+		rol	ZPS_0
 		jsr	KRNL_UNLSN
-		lda	$90
-		bpl	fd_found
-		clc
-		bcc	fd_next
-fd_found:	sec
-fd_next:	rol	ZPS_0
 		dec	ZPS_1
 		bpl	fd_loop
 		lda	ZPS_0
+		eor	#$f
 		rts
 
 floppy_init:
