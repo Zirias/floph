@@ -21,11 +21,12 @@
 .bss
 
 disk_nfiles:	.res	1
-floppy_result:	.res	$100
 
 .segment "ALBSS"
 
 .align $100
+floppy_status:	.res	$100
+floppy_result:	.res	$100
 bam:		.res	$100
 file_size_l:	.res	$100
 file_size_h:	.res	$100
@@ -70,7 +71,51 @@ fd_loop:	lda	#0
 		lda	#$6f
 		jsr	KRNL_SECOND
 		asl	$90
-		rol	ZPS_0
+		bcs	fd_notfound
+		lda	#'u'
+		jsr	KRNL_CIOUT
+		lda	#';'
+		jsr	KRNL_CIOUT
+		jsr	KRNL_UNLSN
+		asl	$90
+		bcs	fd_notfound
+		lda	ZPS_1
+		ora	#8
+		jsr	KRNL_TALK
+		lda	#$f
+		jsr	KRNL_TKSA
+		asl	$90
+		bcs	fd_notfound
+		lda	ZPS_1
+		lsr	a
+		ror	a
+		ror	a
+		tax
+fd_statusloop:	jsr	KRNL_ACPTR
+		bit	$90
+		bmi	fd_statuserr
+		bvs	fd_statusdone
+		sta	floppy_status,x
+		txa
+		and	#$3f
+		beq	fd_chkst0
+		cmp	#1
+		beq	fd_chkst1
+fd_chkstok:	inx
+		bne	fd_statusloop
+fd_chkst0:	lda	#'7'
+		bne	fd_chkst
+fd_chkst1:	lda	#'3'
+fd_chkst:	cmp	floppy_status,x
+		beq	fd_chkstok
+		jsr	KRNL_UNTLK
+		sec
+		bcs	fd_statuserr
+fd_statusdone:	jsr	KRNL_UNTLK
+		lda	#0
+		sta	floppy_status,x
+fd_statuserr:	asl	$90
+fd_notfound:	rol	ZPS_0
 		jsr	KRNL_UNLSN
 		dec	ZPS_1
 		bpl	fd_loop

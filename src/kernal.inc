@@ -1,10 +1,13 @@
 KRNL_LISTEN	= $ffb1
+KRNL_TALK	= $ffb4
 KRNL_SECOND	= $ff93
+KRNL_TKSA	= $ff96
 KRNL_UNLSN	= $ffae
-KRNL_ACPTR	= $ffa5
+KRNL_UNTLK	= $ffab
 KRNL_CHKIN	= $ffc6
 KRNL_CHRIN	= $ffcf
 KRNL_CHROUT	= $ffd2
+KRNL_ACPTR	= $ffa5
 KRNL_CIOUT	= $ffa8
 KRNL_CLOSE	= $ffc3
 KRNL_OPEN	= $ffc0
