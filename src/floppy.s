@@ -2,6 +2,7 @@
 .include "drv.inc"
 .include "kernal.inc"
 .include "statuscode.inc"
+.include "timeout.inc"
 .include "zpshared.inc"
 
 .export floppy_detect
@@ -12,6 +13,7 @@
 .export floppy_hashfile
 .export floppy_receive
 
+.export floppy_message
 .export floppy_result
 .export dirptr_l
 .export dirptr_h
@@ -21,11 +23,12 @@
 .bss
 
 disk_nfiles:	.res	1
+floppy_status:	.res	4
 
 .segment "ALBSS"
 
 .align $100
-floppy_status:	.res	$100
+floppy_message:	.res	$100
 floppy_result:	.res	$100
 bam:		.res	$100
 file_size_l:	.res	$100
@@ -37,6 +40,18 @@ file_sector:	.res	$100
 directory:	.res	$2800
 
 .data
+
+model_nodev:	.byte	"nodev", 0
+model_unkwn:	.byte	"unkwn", 0
+model_c1541:	.byte	"c1541", 0
+model_c1570:	.byte	"c1570", 0
+model_c1571:	.byte	"c1571", 0
+model_c1581:	.byte	"c1581", 0
+
+msg_notpresent:	.byte	"(device not present)", 0
+msg_noresponse:	.byte	"(device did not respond)", 0
+msg_noreset:	.byte	"(device ignored reset)", 0
+msg_nofloppy:	.byte	"(not a floppy)", 0
 
 mwcmd:		.byte	$20, $ff, $ff, "w-m"
 mwcmd_len=	* - mwcmd
@@ -60,67 +75,319 @@ endtrack:	.byte	36, 41, 43
 
 floppy_detect:
 		lda	#0
+		tax
+		sta	floppy_message,x
+		inx
+		bne	*-4
 		sta	ZPS_0
-		lda	#3
-		sta	ZPS_1
-fd_loop:	lda	#0
+		ldx	#3
+fd_listen:	stx	ZPS_1
+		lda	#0			; clear serial bus status flags
+		sta	$90
+		sta	floppy_status,x
+		txa
+		ora	#8
+		jsr	KRNL_LISTEN
+		bit	$90			; check status directly
+		bmi	fd_nolisten		; (READST just returns this)
+		lda	#$6f
+		jsr	KRNL_SECOND
+		bit	$90
+		bmi	fd_nolisten
+		lda	#'u'			; send command for full ...
+		jsr	KRNL_CIOUT
+		bit	$90
+		bmi	fd_nolisten
+		lda	#'9'			; ... warmstart
+		jsr	KRNL_CIOUT
+		bit	$90
+		bmi	fd_nolisten
+		jsr	KRNL_UNLSN
+		lda	#$40			; bit #6: device listened
+		bit	$90
+		bpl	fd_listened
+		bmi	fd_unlsnerr
+fd_nolisten:	jsr	KRNL_UNLSN
+fd_unlsnerr:	lda	#0
+fd_listened:	ldx	ZPS_1
+		sta	floppy_status,x
+		dex
+		bpl	fd_listen
+
+		ldx	#3
+fd_talk:	stx	ZPS_1
+		lda	floppy_status,x
+		beq	fd_talknext		; didn't listen? -> skip
+		lda	#<fd_timeout
+		ldx	#>fd_timeout
+		ldy	#50			; up to 500ms to receive status
+		jsr	timeout_set
+		lda	#0
 		sta	$90
 		lda	ZPS_1
 		ora	#8
-		jsr	KRNL_LISTEN
-		lda	#$6f
-		jsr	KRNL_SECOND
-		asl	$90
-		bcs	fd_notfound
-		lda	#'u'
-		jsr	KRNL_CIOUT
-		lda	#';'
-		jsr	KRNL_CIOUT
-		jsr	KRNL_UNLSN
-		asl	$90
-		bcs	fd_notfound
-		lda	ZPS_1
-		ora	#8
 		jsr	KRNL_TALK
+		bit	$90
+		bmi	fd_notalk
 		lda	#$f
 		jsr	KRNL_TKSA
-		asl	$90
-		bcs	fd_notfound
-		lda	ZPS_1
-		lsr	a
+		bit	$90
+		bmi	fd_notalk
+		lda	ZPS_1			; turn index (0-3) into
+		lsr	a			; offset ($00, $40, $80, $c0)
 		ror	a
 		ror	a
 		tax
-fd_statusloop:	jsr	KRNL_ACPTR
+fd_messageloop:	jsr	KRNL_ACPTR		; read status message
 		bit	$90
-		bmi	fd_statuserr
-		bvs	fd_statusdone
-		sta	floppy_status,x
+		bvs	fd_messagedone
+		bmi	fd_messagedone		; terminate msg even on error
+		sta	floppy_message,x
+		inx
 		txa
 		and	#$3f
-		beq	fd_chkst0
-		cmp	#1
-		beq	fd_chkst1
-fd_chkstok:	inx
-		bne	fd_statusloop
-fd_chkst0:	lda	#'7'
-		bne	fd_chkst
-fd_chkst1:	lda	#'3'
-fd_chkst:	cmp	floppy_status,x
-		beq	fd_chkstok
+		bne	fd_messageloop
+		dex
+fd_messagedone:	lda	#0
+		sta	floppy_message,x	; NUL-terminate message
 		jsr	KRNL_UNTLK
-		sec
-		bcs	fd_statuserr
-fd_statusdone:	jsr	KRNL_UNTLK
-		lda	#0
+		lda	#$80			; bit #7: device talked
+		bit	$90
+		bpl	fd_talked
+		bmi	fd_untlkerr
+fd_notalk:	jsr	KRNL_UNTLK
+fd_untlkerr:	lda	#$0
+fd_talked:	jsr	timeout_cancel
+		ldx	ZPS_1
+		ora	floppy_status,x
 		sta	floppy_status,x
-fd_statuserr:	asl	$90
-fd_notfound:	rol	ZPS_0
-		jsr	KRNL_UNLSN
-		dec	ZPS_1
-		bpl	fd_loop
-		lda	ZPS_0
-		eor	#$f
+fd_talknext:	dex
+		bpl	fd_talk
+		bmi	fd_parse
+fd_timeout:	lda	CIA2_PRA		; on timeout, try to recover:
+		ora	#$38			; pull ATN/CLK/DATA low
+		sta	CIA2_PRA
+		ldy	#3			; wait a while
+		ldx	#0
+		inx
+		bne	*-1
+		dey
+		bne	*-4
+		and	#$c7			; release ATN/CLK/DATA
+		sta	CIA2_PRA
+		ldy	#3			; wait a while again
+		inx
+		bne	*-1
+		dey
+		bne	*-4
+		stx	$90			; reset some KERNAL variables
+		stx	$94
+		stx	$98
+		stx	$a3
+		stx	$a4
+		stx	$a5
+		dex
+		stx	$95
+		ldx	ZPS_1			; try next device
+		bpl	fd_talknext
+
+fd_parse:	ldx	#3
+fd_parseloop:	stx	ZPS_1
+		txa
+		lsr	a
+		ror	a
+		ror	a
+		tay
+		lda	floppy_status,x
+		bpl	fd_checklsn
+		sty	ZPS_2
+		lda	floppy_message,y
+		cmp	#'7'
+		bne	fd_checkokst
+		iny
+		lda	floppy_message,y
+		cmp	#'3'
+		bne	fd_nofloppy
+		iny
+		lda	floppy_message,y
+		cmp	#','
+		bne	fd_nofloppy
+		jmp	fd_identify
+fd_checkokst:	cmp	#'0'
+		bne	fd_nofloppy
+		iny
+		lda	floppy_message,y
+		cmp	#'0'
+		bne	fd_nofloppy
+		iny
+		lda	floppy_message,y
+		cmp	#','
+		bne	fd_nofloppy
+		dey
+		dey
+		lda	#<model_unkwn
+		sta	floppy_message,y
+		iny
+		lda	#>model_unkwn
+		sta	floppy_message,y
+		iny
+		ldx	#0
+fd_norstloop:	lda	msg_noreset,x
+		sta	floppy_message,y
+		beq	fd_notok
+		iny
+		inx
+		bne	fd_norstloop
+fd_nofloppy:	ldy	ZPS_2
+		lda	#<model_unkwn
+		sta	floppy_message,y
+		iny
+		lda	#>model_unkwn
+		sta	floppy_message,y
+		iny
+		ldx	#0
+fd_noflploop:	lda	msg_nofloppy,x
+		sta	floppy_message,y
+		beq	fd_notok
+		iny
+		inx
+		bne	fd_noflploop
+fd_checklsn:	beq	fd_nodev
+		lda	#<model_unkwn
+		sta	floppy_message,y
+		iny
+		lda	#>model_unkwn
+		sta	floppy_message,y
+		iny
+		ldx	#0
+fd_noresploop:	lda	msg_noresponse,x
+		sta	floppy_message,y
+		beq	fd_notok
+		iny
+		inx
+		bne	fd_noresploop
+fd_nodev:	lda	#<model_nodev
+		sta	floppy_message,y
+		iny
+		lda	#>model_nodev
+		sta	floppy_message,y
+		iny
+		ldx	#0
+fd_nodevloop:	lda	msg_notpresent,x
+		sta	floppy_message,y
+		beq	fd_notok
+		iny
+		inx
+		bne	fd_nodevloop
+fd_notok:	clc
+		bcc	fd_parsenext
+fd_ok:		sec
+fd_parsenext:	rol	ZPS_0
+		ldx	ZPS_1
+		dex
+		bmi	fd_done
+		jmp	fd_parseloop
+fd_done:	lda	ZPS_0
+		rts
+
+fd_identify:	ldy	ZPS_2
+		lda	#<(model_c1541+1)
+		ldx	#>(model_c1541+1)
+		jsr	fd_strstr
+		bcc	fd_check1570
+		ldy	ZPS_2
+		lda	#<model_c1541
+		sta	floppy_message,y
+		iny
+		lda	#>model_c1541
+		sta	floppy_message,y
+		jsr	fd_chopmsg
+		beq	fd_ok
+fd_check1570:	ldy	ZPS_2
+		lda	#<(model_c1570+1)
+		ldx	#>(model_c1570+1)
+		jsr	fd_strstr
+		bcc	fd_check1571
+		ldy	ZPS_2
+		lda	#<model_c1570
+		sta	floppy_message,y
+		iny
+		lda	#>model_c1570
+		sta	floppy_message,y
+		jsr	fd_chopmsg
+		beq	fd_ok
+fd_check1571:	ldy	ZPS_2
+		lda	#<(model_c1571+1)
+		ldx	#>(model_c1571+1)
+		jsr	fd_strstr
+		bcc	fd_check1581
+		ldy	ZPS_2
+		lda	#<model_c1571
+		sta	floppy_message,y
+		iny
+		lda	#>model_c1571
+		sta	floppy_message,y
+		jsr	fd_chopmsg
+		beq	fd_ok
+fd_check1581:	ldy	ZPS_2
+		lda	#<(model_c1581+1)
+		ldx	#>(model_c1581+1)
+		jsr	fd_strstr
+		ldy	ZPS_2
+		bcc	fd_unkwnflp
+		lda	#<model_c1581
+		sta	floppy_message,y
+		iny
+		lda	#>model_c1581
+		sta	floppy_message,y
+		bcs	fd_checkdone
+fd_unkwnflp:	lda	#<model_unkwn
+		sta	floppy_message,y
+		iny
+		lda	#>model_unkwn
+		sta	floppy_message,y
+fd_checkdone:	jsr	fd_chopmsg
+		jmp	fd_notok
+
+fd_strstr:	sta	fd_ssndlrd1+1
+		sta	fd_ssndlrd2+1
+		stx	fd_ssndlrd1+2
+		stx	fd_ssndlrd2+2
+fd_ssloop:	lda	floppy_message,y
+		beq	fd_ssnotfound
+fd_ssndlrd1:	cmp	$ffff
+		beq	fd_ssndlscan
+		iny
+		bne	fd_ssloop
+fd_ssnotfound:	clc
+		rts
+fd_ssndlscan:	iny
+		sty	fd_ssrsty+1
+		ldx	#1
+fd_ssndlrd2:	lda	$ffff,x
+		beq	fd_ssfound
+		cmp	floppy_message,y
+		bne	fd_ssrsty
+		iny
+		inx
+		bne	fd_ssndlrd2
+fd_ssrsty:	ldy	#$ff
+		bne	fd_ssloop
+fd_ssfound:	sec
+		rts
+
+fd_chopmsg:	iny
+		lda	#'('
+		sta	floppy_message,y
+fd_choploop:	iny
+		lda	floppy_message,y
+		cmp	#','
+		bne	fd_choploop
+		lda	#')'
+		sta	floppy_message,y
+		iny
+		lda	#0
+		sta	floppy_message,y
 		rts
 
 floppy_init:
