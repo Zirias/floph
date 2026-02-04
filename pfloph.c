@@ -135,7 +135,7 @@ int main(int argc, char **argv)
     {
 	if (!(f = input = fopen(argv[0], "rb")))
 	{
-	    fprintf(stderr, "Cannot open %d for reading.\n", argv[0]);
+	    fprintf(stderr, "Cannot open %s for reading.\n", argv[0]);
 	    return EXIT_FAILURE;
 	}
     }
