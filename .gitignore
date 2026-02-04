@@ -6,3 +6,5 @@
 *.tar.*
 *.d64
 obj/
+/pfloph
+/errappend
