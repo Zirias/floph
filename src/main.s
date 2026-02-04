@@ -15,7 +15,9 @@ hdrend:		.word	0
 
 detectingtxt:	.byte	$d, "floph, the floppy hasher", $d
 		.byte	"2026 by zirias", $d, $d
-		.byte	"detecting disk drives ... ", $d, 0
+		.byte	"detecting disk drives ... ", 0
+detectedtxt:	.byte	"done!", $d, $d
+		.byte	"drive list (usable in light grey):", $d, $d, 0
 drv8msg:	.byte	"8  ", 0
 drv9msg:	.byte	"9  ", 0
 drv10msg:	.byte	"10 ", 0
@@ -40,7 +42,12 @@ menuscrh:	.res	5
 menudrv:	.res	5
 
 .macro		drvres	msg, num
-		lda	#<msg
+		.local	nohilite
+		lsr	ZPS_1
+		bcc	nohilite
+		lda	#$f
+		sta	$286
+nohilite:	lda	#<msg
 		ldx	#>msg
 		jsr	puts
 		lda	floppy_message+64*num
@@ -51,17 +58,26 @@ menudrv:	.res	5
 		lda	#<(floppy_message+64*num+2)
 		ldx	#>(floppy_message+64*num+2)
 		jsr	puts
+		lda	ZPS_F
+		sta	$286
 		lda	#$d
 		jsr	KRNL_CHROUT
 .endmacro
 
 .segment "ENTRY"
 
-entry:		lda	#<detectingtxt
+entry:
+		lda	$286
+		sta	ZPS_F
+		lda	#<detectingtxt
 		ldx	#>detectingtxt
 		jsr	puts
 		jsr	floppy_detect
 		sta	ZPS_0
+		sta	ZPS_1
+		lda	#<detectedtxt
+		ldx	#>detectedtxt
+		jsr	puts
 		drvres	drv8msg, 0
 		drvres	drv9msg, 1
 		drvres	drv10msg, 2
