@@ -14,10 +14,10 @@ SECT_1=		9
 BUF_0=		3
 BUF_1=		4
 
-RQTRACK=	$35
-CURTRACK=	$37
-SECTORS=	$3b
-SECTNO=		$3c
+RQTRACK=	$c7
+CURTRACK=	$c8
+SECTORS=	$c9
+SECTNO=		$ca
 
 .segment "DRV"
 
