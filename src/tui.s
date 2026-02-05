@@ -383,12 +383,13 @@ isr0:
 		sta	i0_kcbase+1
 		lda	cmd
 		beq	i0_dokb
-		jmp	i0_skipkb
+		jmp	i0_kbdone
 i0_dokb:	lda	CIA1_PRA
+		and	CIA1_PRB
 		and	#$1f
 		eor	#$1f
 		beq	i0_nojs
-		jmp	i0_skipkb
+		jmp	i0_kbinval
 i0_nojs:	lda	#$ff
 		sta	CIA1_DDRA
 		lda	#$7f
@@ -427,7 +428,14 @@ i0_noenter:	lsr	a
 		bne	i0_kbinval
 		beq	i0_kbval
 i0_stopkey:	ldx	#6
-i0_kbval:	txa
+i0_kbval:	lda	#0
+		sta	CIA1_DDRA
+		lda	CIA1_PRA
+		and	CIA1_PRB
+		and	#$1f
+		eor	#$1f
+		bne	i0_kbinval
+		txa
 		cmp	lastkey
 		sta	lastkey
 		beq	i0_kbcheckrep
@@ -449,9 +457,8 @@ i0_storecmd:	sta	cmd
 		bne	i0_kbdone
 i0_kbinval:	lda	#$0
 		sta	lastkey
-i0_kbdone:	lda	#$0
 		sta	CIA1_DDRA
-i0_skipkb:
+i0_kbdone:
 i0_rx:		ldx	#$ff
 i0_ra:		lda	#$ff
 i0_rti:		rti
