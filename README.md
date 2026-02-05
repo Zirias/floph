@@ -1,7 +1,19 @@
 # floph - the Floppy Hasher
 
-This is a C64 tool to hash files directly on the 1541 floppy, using 64 bit
-FNV-1a.
+This is a C64 tool to hash files or whole disks directly on the 1541 floppy,
+using 64 bit FNV-1a. So it allows to **check integrity** on real original
+hardware. It could for example be used to verify hashes after downloading
+some disk images *and* transfering them to a physical floppy disk, given the
+publisher also published a floph (FNV-1a) hash to compare to.
+
+**IMPORTANT:** FNV-1a is not a cryptographically secure hash function. Such a
+hash function (e.g. SHA-256 or SHA-512) would be required to protect against
+*intentional, malicious tampering*, but those functions are impossible to
+implement on a 1MHz MOS-6502 machine with limited RAM.
+
+With FNV-1a, you should assume collision attacks are feasible for a
+determined attacker, so expect this tool to **only protect against accidental
+corruption**, e.g. "bitrot".
 
 ## Features
 
