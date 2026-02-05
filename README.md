@@ -25,6 +25,24 @@ After detection and identification of connected drives, a little menu is
 shown, allowing to pick any supported drive, or cancel and exit without
 uploading and starting floph's drive code.
 
+## Screenshots
+
+<a href="https://github.com/Zirias/floph/blob/res/floph_00.png?raw=true"><img
+    src="https://github.com/Zirias/floph/blob/res/floph_00.png?raw=true"
+    width="202px"></a>
+<a href="https://github.com/Zirias/floph/blob/res/floph_01.png?raw=true"><img
+    src="https://github.com/Zirias/floph/blob/res/floph_01.png?raw=true"
+    width="202px"></a>
+<a href="https://github.com/Zirias/floph/blob/res/floph_02.png?raw=true"><img
+    src="https://github.com/Zirias/floph/blob/res/floph_02.png?raw=true"
+    width="202px"></a>
+<a href="https://github.com/Zirias/floph/blob/res/floph_03.png?raw=true"><img
+    src="https://github.com/Zirias/floph/blob/res/floph_03.png?raw=true"
+    width="202px"></a>
+<a href="https://github.com/Zirias/floph/blob/res/floph_04.png?raw=true"><img
+    src="https://github.com/Zirias/floph/blob/res/floph_04.png?raw=true"
+    width="202px"></a>
+
 ## Missing (future) features
 
 Here's a rough list of what to possibly add later:
